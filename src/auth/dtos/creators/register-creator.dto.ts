@@ -9,7 +9,6 @@ import {
 } from 'class-validator';
 import { Platform } from '../../../enums/platform.enum';
 import { Niche } from '../../../enums/niche.enum';
-import { Expose } from 'class-transformer';
 
 export class RegisterCreatorDto {
   @IsString()
