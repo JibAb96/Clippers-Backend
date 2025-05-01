@@ -15,8 +15,10 @@ import { RegisterCreatorDto } from './dtos/creators/register-creator.dto';
 import { SignInUserDto } from './dtos/signin-user.dto';
 import { UpdateCreatorDto } from './dtos/creators/update-creator.dto';
 import { CreatorProfileInterface } from '../interfaces/creator-profle.interface';
-import { UserResponse } from '../interfaces/auth-response.dto';
+import { UserResponse } from '../interfaces/user-auth-response.interface';
 import { AuthResponse } from './interfaces/auth-response.interface';
+import { ClippersService } from 'src/clippers/clippers.service';
+import { RegisterClipperDto } from 'src/auth/dtos/clippers/register-clipper.dto';
 @Injectable()
 export class UserFacadeService {
   private readonly logger = new Logger(UserFacadeService.name);
@@ -24,11 +26,10 @@ export class UserFacadeService {
   constructor(
     private readonly authService: AuthService,
     private readonly creatorsService: CreatorsService,
+    private readonly clippersService: ClippersService,
   ) {}
 
-  async register(
-    userData: RegisterCreatorDto,
-  ): Promise<UserResponse> {
+  async registerCreator(userData: RegisterCreatorDto): Promise<UserResponse> {
     if (userData.password !== userData.confirmPassword) {
       throw new BadRequestException('Password and confirm password must match');
     }
@@ -40,17 +41,17 @@ export class UserFacadeService {
         password: userData.password,
       });
       if (!authData?.id) {
-        this.logger.log('Auth registration failed to return a user ID');
+        this.logger.error('Auth registration failed to return a user ID');
         throw new InternalServerErrorException(
           'There was an internal server error',
         );
       }
 
-
       const { confirmPassword, password, ...user } = userData;
       const userProfile = await this.creatorsService.create({
         id: authData.id,
         ...user,
+        brandProfilePic: null,
       });
       profileCreated = true;
 
@@ -60,44 +61,115 @@ export class UserFacadeService {
         refreshToken: authData.refreshToken,
       };
     } catch (error) {
-      try {
-        if (authData?.id && !profileCreated) {
+      // Rollback if user was created in auth but not in profile
+      if (authData?.id && !profileCreated) {
+        try {
           await this.authService.deleteUser(authData.id);
-          this.logger.log(
+          this.logger.warn(
             `Rolled back auth user ${authData.id} after failed registration`,
           );
-          this.logger.log(`Rollback completed for user ${authData.id} but profile creation failed`);
+        } catch (rollbackError) {
+          this.logger.error(
+            `Rollback failed: ${rollbackError.message}`,
+            rollbackError.stack,
+          );
+          throw new InternalServerErrorException(
+            'Registration failed and rollback also failed',
+          );
         }
-      } catch (rollbackError) {
-        this.logger.error(`Rollback failed: ${rollbackError.message}`);
-        throw new InternalServerErrorException(
-          'Registration failed due to an internal server error',
-        );
       }
 
+      if (error instanceof ConflictException) throw error;
+      if (error instanceof BadRequestException) throw error;
       if (error.message?.includes('duplicate key')) {
         throw new ConflictException('User with this email already exists');
       }
-      this.logger.error(`Registration failed: ${error.message}`);
-      throw new InternalServerErrorException(
-        'Registration failed due to an internal error',
-      );
+      this.logger.error(`Registration failed: ${error.message}`, error.stack);
+      throw error instanceof HttpException
+        ? error
+        : new InternalServerErrorException(
+            'Registration failed due to an internal error',
+          );
     }
   }
 
-  async authenticateUser(credentials: SignInUserDto): Promise<UserResponse> {
-    const authData = await this.authService.signin({
-      email: credentials.email,
-      password: credentials.password,
-    });
+  async registerClipper(form: RegisterClipperDto): Promise<UserResponse> {
+    if (form.password !== form.confirmPassword) {
+      throw new BadRequestException('Password and confirm password must match');
+    }
+    let authData: AuthResponse | null = null;
+    let profileCreated = false;
+    try {
+      authData = await this.authService.register({
+        email: form.email,
+        password: form.password,
+      });
+      if (!authData?.id) {
+        this.logger.error('Auth registration failed to return a user ID');
+        throw new InternalServerErrorException(
+          'There was an internal server error',
+        );
+      }
+
+      const { confirmPassword, password, ...fields } = form;
+      const clipperProfile = await this.clippersService.create({
+        id: authData.id,
+        brandProfilePic: null,
+        ...fields,
+      });
+      profileCreated = true;
+
+      return {
+        user: clipperProfile,
+        token: authData.token,
+        refreshToken: authData.refreshToken,
+      };
+    } catch (error) {
+      if (authData?.id && !profileCreated) {
+        try {
+          await this.authService.deleteUser(authData.id);
+          this.logger.warn(
+            `Rolled back auth clipper ${authData.id} after failed registration`,
+          );
+        } catch (rollbackError) {
+          this.logger.error(
+            `Rollback failed: ${rollbackError.message}`,
+            rollbackError.stack,
+          );
+          throw new InternalServerErrorException(
+            'Clipper registration failed and rollback also failed',
+          );
+        }
+      }
+
+      if (error instanceof ConflictException) throw error;
+      if (error instanceof BadRequestException) throw error;
+      if (error.message?.includes('duplicate key')) {
+        throw new ConflictException('Clipper with this email already exists');
+      }
+      this.logger.error(
+        `Clipper registration failed: ${error.message}`,
+        error.stack,
+      );
+      throw error instanceof HttpException
+        ? error
+        : new InternalServerErrorException(
+            'Clipper registration failed due to an internal error',
+          );
+    }
+  }
+
+  async authenticateCreator(credentials: SignInUserDto): Promise<UserResponse> {
+    const authData: AuthResponse = await this.authenticateUser(credentials);
     try {
       if (authData.id) {
         const creatorProfile = await this.creatorsService.findOneById(
           authData.id,
         );
-
         if (!creatorProfile) {
-          throw new Error('Authentication succeeded but profile not found');
+          throw new NotFoundException(
+            'Authentication succeeded but profile not found',
+          );
         }
         return {
           user: creatorProfile,
@@ -108,41 +180,35 @@ export class UserFacadeService {
       throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     } catch (error) {
       this.logger.error(`Signin failed: ${error.message}`, error.stack);
-
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      if (error.message?.includes('Database error')) {
-        throw new InternalServerErrorException(
-          'Authentication service unavailable',
-        );
-      }
+      if (error instanceof NotFoundException) throw error;
       throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     }
   }
 
-  async uploadImage(image: Express.Multer.File, brandName: string, id: string): Promise<string | null> {
-    let imageUrl: string | null = null;
+  async authenticateClipper(credentials: SignInUserDto): Promise<UserResponse> {
+    const authData: AuthResponse = await this.authenticateUser(credentials);
     try {
-      const response = await this.creatorsService.uploadProfilePicture(image, brandName);
-      imageUrl = response?.url || null;
-      try{
-         await this.creatorsService.update(id, {
-          brandProfilePic: imageUrl
-        })
-      } catch (error) {
-        this.logger.error(`Updating user profile picture failed: ${error.message}`, error.stack);
-        throw new InternalServerErrorException(
-          'There was an internal server error updating the user profile',
+      if (authData.id) {
+        const clipperProfile = await this.clippersService.findOneById(
+          authData.id,
         );
+        if (!clipperProfile) {
+          throw new NotFoundException(
+            'Authentication succeeded but profile not found',
+          );
+        }
+        return {
+          user: clipperProfile,
+          token: authData.token,
+          refreshToken: authData.refreshToken,
+        };
       }
+      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     } catch (error) {
-      this.logger.error(`Image upload failed: ${error.message}`, error.stack);
-      throw new InternalServerErrorException(
-        'There was an internal server error uploading the image',
-      );
+      this.logger.error(`Signin failed: ${error.message}`, error.stack);
+      if (error instanceof NotFoundException) throw error;
+      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     }
-    return imageUrl
   }
 
   async getUserProfile(
@@ -160,28 +226,50 @@ export class UserFacadeService {
     userData: UpdateCreatorDto,
     requestUser: any,
   ): Promise<CreatorProfileInterface> {
+    this.ensureSameUser(userId, requestUser);
     try {
-      this.ensureSameUser(userId, requestUser);
-      const updatedUser = await this.creatorsService.update(userId, userData);
-      return updatedUser;
+      return await this.creatorsService.update(userId, userData);
     } catch (error) {
       this.logger.error(`Updating user failed: ${error.message}`, error.stack);
       if (
         error instanceof NotFoundException ||
         error instanceof ForbiddenException
-      ) {
+      )
         throw error;
-      }
-
       throw new InternalServerErrorException(
-        'There was internal server error updating user ',
+        'There was an internal server error updating user',
       );
     }
   }
 
-  async deleteUser(userId: string, requestUser: any) {
+  async uploadCreatorImage(
+    image: Express.Multer.File,
+    userId: string,
+  ): Promise<string | null> {
+    let imageUrl: string | null = null;
     try {
-      this.ensureSameUser(userId, requestUser);
+      const response = await this.creatorsService.uploadProfilePicture(
+        image,
+        userId,
+      );
+      imageUrl = response?.url || null;
+      await this.creatorsService.update(userId, { brandProfilePic: imageUrl });
+    } catch (error) {
+      this.logger.error(
+        `Image upload or update failed: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(
+        'There was an internal server error uploading or updating the image',
+      );
+    }
+    return imageUrl;
+  }
+
+  async deleteUser(userId: string, requestUser: any) {
+    this.ensureSameUser(userId, requestUser);
+    try {
       await this.authService.deleteUser(userId);
       return {
         success: true,
@@ -192,12 +280,62 @@ export class UserFacadeService {
       if (
         error instanceof NotFoundException ||
         error instanceof ForbiddenException
-      ) {
+      )
         throw error;
-      }
-
       throw new InternalServerErrorException(
         'There was an internal server error deleting user',
+      );
+    }
+  }
+
+  async deleteProfileImage(
+    userId: string,
+    clipperId: string,
+    requestUser: any,
+  ): Promise<{ success: boolean; message: string }> {
+    this.ensureSameUser(userId, requestUser);
+
+    // Get the current profile to restore if needed
+    const profile = await this.creatorsService.findOneById(userId);
+    const previousProfilePic = profile?.brandProfilePic ?? null;
+
+    try {
+      // Set the brandProfilePic column to null
+      await this.creatorsService.update(userId, { brandProfilePic: null });
+
+      try {
+        // Delete the image from the bucket
+        await this.creatorsService.deleteImage(clipperId);
+      } catch (bucketError) {
+        // Rollback the DB update if bucket deletion fails
+        await this.creatorsService.update(userId, {
+          brandProfilePic: previousProfilePic,
+        });
+        this.logger.error(
+          `Deleting profile image from bucket failed: ${bucketError.message}`,
+          bucketError.stack,
+        );
+        throw new InternalServerErrorException(
+          'There was an internal server error deleting the profile image from storage. Changes have been rolled back.',
+        );
+      }
+
+      return {
+        success: true,
+        message: 'Profile image deleted successfully',
+      };
+    } catch (error) {
+      this.logger.error(
+        `Deleting profile image failed: ${error.message}`,
+        error.stack,
+      );
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      )
+        throw error;
+      throw new InternalServerErrorException(
+        'There was an internal server error deleting the profile image',
       );
     }
   }
@@ -210,10 +348,21 @@ export class UserFacadeService {
     }
   }
 
-  private imageFileFilter = (req, file, callback) => {
-    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-      return callback(new Error('Only image files are allowed!'), false);
+  private async authenticateUser(credentials: SignInUserDto) {
+    try {
+      return await this.authService.signin({
+        email: credentials.email,
+        password: credentials.password,
+      });
+    } catch (error) {
+      this.logger.error(`Signin failed: ${error.message}`, error.stack);
+      if (error instanceof NotFoundException) throw error;
+      if (error.message?.includes('Database error')) {
+        throw new InternalServerErrorException(
+          'Authentication service unavailable',
+        );
+      }
+      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     }
-    callback(null, true);
-  };
+  }
 }
