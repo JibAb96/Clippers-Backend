@@ -14,26 +14,27 @@ import {
 } from '@nestjs/common';
 import { RegisterCreatorDto } from './dtos/creators/register-creator.dto';
 import { UpdateCreatorDto } from './dtos/creators/update-creator.dto';
-import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
+import { SupabaseAuthGuard } from '../guards/supabase-auth.guard';
 import { SignInUserDto } from './dtos/signin-user.dto';
 import { UserFacadeService } from './user-facade.service';
-import { UserResponse } from '../interfaces/auth-response.dto';
-import { ApiResponse } from './interfaces/api.interface';
+import { UserResponse } from '../interfaces/user-auth-response.interface';
+import { ApiResponse } from '../interfaces/api.interface';
 import { CreatorProfileInterface } from 'src/interfaces/creator-profle.interface';
-import { CurrentUser } from './decorators/current-user.decorator';
-import { SupabaseUser } from './interfaces/auth-request.interface';
+import { CurrentUser } from '../decorators/current-user.decorator';
+import { SupabaseUser } from '../interfaces/auth-request.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { UploadImageDto } from './dtos/upload-image.dto';
+import { RegisterClipperDto } from './dtos/clippers/register-clipper.dto';
+import { DeleteImageDto } from './dtos/creators/delete-image.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly userFacade: UserFacadeService) {}
 
-  @Post('/register')
+  @Post('/register/creator')
   async registerCreator(
     @Body() body: RegisterCreatorDto,
   ): Promise<ApiResponse<UserResponse>> {
-    const response = await this.userFacade.register(body);
+    const response = await this.userFacade.registerCreator(body);
     return {
       status: 'success',
       data: response,
@@ -41,20 +42,42 @@ export class AuthController {
     };
   }
 
-  @Post('/login')
-  async login(@Body() body: SignInUserDto): Promise<ApiResponse<UserResponse>> {
-    const response = await this.userFacade.authenticateUser(body);
+  @Post('/register/clipper')
+  async registerClipper(
+    @Body() body: RegisterClipperDto,
+  ): Promise<ApiResponse<UserResponse>> {
+    const response = await this.userFacade.registerClipper(body);
     return {
       status: 'success',
       data: response,
-      message: 'User logged in successfully',
+      message: 'User registered successfully',
+    };
+  }
+
+  @Post('/login/creator')
+  async loginCreator(@Body() body: SignInUserDto): Promise<ApiResponse<UserResponse>> {
+    const response = await this.userFacade.authenticateCreator(body);
+    return {
+      status: 'success',
+      data: response,
+      message: 'Creator logged in successfully',
+    };
+  }
+
+  @Post('/login/clipper')
+  async loginClipper(@Body() body: SignInUserDto): Promise<ApiResponse<UserResponse>> {
+    const response = await this.userFacade.authenticateClipper(body);
+    return {
+      status: 'success',
+      data: response,
+      message: 'Clipper logged in successfully',
     };
   }
 
   @UseGuards(SupabaseAuthGuard)
-  @Post('/upload-image')
+  @Post('/upload-creator-image')
   @UseInterceptors(FileInterceptor('image'))
-  async uploadImage(
+  async uploadCreatorImage(
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({
@@ -70,15 +93,9 @@ export class AuthController {
     image: Express.Multer.File,
     @CurrentUser()
     currentUser: SupabaseUser,
-    @Body()
-    body: UploadImageDto,
   ) {
     console.log('image:', image);
-    const response = await this.userFacade.uploadImage(
-      image,
-      body.brandName,
-      currentUser.id,
-    );
+    const response = await this.userFacade.uploadCreatorImage(image, currentUser.id);
     return {
       status: 'success',
       data: response,
@@ -129,6 +146,25 @@ export class AuthController {
       status: 'success',
       data: response,
       message: 'User updated successfully',
+    };
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Delete('/:id/delete-image')
+  async deleteProfileImage(
+    @Param('id') id: string,
+    @Body() body: DeleteImageDto,
+    @CurrentUser() currentUser: SupabaseUser,
+  ): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    const response = await this.userFacade.deleteProfileImage(
+      id,
+      body.brandName,
+      currentUser.id,
+    );
+    return {
+      status: 'success',
+      data: response,
+      message: response.message,
     };
   }
 }
