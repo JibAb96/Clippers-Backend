@@ -5,13 +5,14 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SupabaseService } from 'src/supabase/supabase.service';
+import { AuthResponse } from "./interfaces/auth-response.interface";
 
 @Injectable()
 export class AuthRepository {
   constructor(private supabaseService: SupabaseService) {}
   private readonly logger = new Logger(AuthRepository.name);
 
-  async register(email: string, password: string) {
+  async register(email: string, password: string): Promise<AuthResponse> {
     console.log('Raw email input:', email);
     console.log('Email after trim:', email.trim());
     const { data, error } = await this.supabaseService.client.auth.signUp({
@@ -25,10 +26,14 @@ export class AuthRepository {
         'There was an internal server error during registration',
       );
     }
-    return data;
+    return {
+      id: data.user?.id,
+      token: data.session?.access_token,
+      refreshToken: data.session?.refresh_token,
+    };
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string): Promise<AuthResponse> {
     const { data, error } =
       await this.supabaseService.client.auth.signInWithPassword({
         email,
@@ -47,10 +52,14 @@ export class AuthRepository {
       );
     }
 
-    return data;
+    return {
+      id: data.user.id,
+      token: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+    };;
   }
 
-  async deleteUser(id: string) {
+  async deleteUser(id: string): Promise<void> {
     const { error } =
       await this.supabaseService.client.auth.admin.deleteUser(id);
     if (error) {
