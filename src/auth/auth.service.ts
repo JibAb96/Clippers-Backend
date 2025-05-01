@@ -12,15 +12,11 @@ export class AuthService {
 
   async register(authDto: AuthDto): Promise<AuthResponse> {
     try {
-      const authData = await this.authRepository.register(
+      const response = await this.authRepository.register(
         authDto.email,
         authDto.password,
       );
-      return {
-        id: authData.user?.id,
-        token: authData.session?.access_token,
-        refreshToken: authData.session?.refresh_token,
-      };
+      return response
     } catch (error) {
       this.logger.error(`Registration failed: ${error.message}`, error.stack);
       throw error;
@@ -29,16 +25,12 @@ export class AuthService {
 
   async signin(authDto: AuthDto): Promise<AuthResponse> {
     try {
-      const authData = await this.authRepository.login(
+      const response = await this.authRepository.login(
         authDto.email,
         authDto.password,
       );
 
-      return {
-        id: authData.user.id,
-        token: authData.session.access_token,
-        refreshToken: authData.session.refresh_token,
-      };
+      return response
     } catch (error) {
       this.logger.error(`Login failed: ${error.message}`, error.stack);
       throw error;
