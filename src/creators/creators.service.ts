@@ -3,11 +3,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatorsRepository } from './creators.repository';
 import { CreatorProfileInterface } from '../interfaces/creator-profle.interface';
 import camelCaseKeys from 'camelcase-keys';
-import { UploadFileResponse } from '../auth/interfaces/upload-response.interface';
+import { UploadFileResponse } from '../interfaces/upload-response.interface';
 
 @Injectable()
 export class CreatorsService {
-  constructor(private readonly creatorRepository: CreatorsRepository) {}
+  constructor(private readonly creatorRepository: CreatorsRepository) { }
+  
   async findOneById(id: string): Promise<CreatorProfileInterface | null> {
     if (!id) {
       return null;
@@ -50,29 +51,23 @@ export class CreatorsService {
     }
     await this.creatorRepository.delete(id);
   }
+
   async uploadProfilePicture(
     file: Express.Multer.File,
-    brandName: string,
+    userId: string,
   ): Promise<UploadFileResponse> {
-    const sanitizedBrandName = brandName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const fileExtension = file.mimetype.split('/')[1];
     return await this.creatorRepository.uploadedFile(
       file,
-      'brand-profile-pic',
-      `${sanitizedBrandName}/profilepic.${fileExtension}`,
+      'creator-profile-pictures',
+      `${userId}/profilepic`,
     );
   }
   async deleteImage(
-    file: Express.Multer.File,
-    brandName: string,
+    clipperId: string,
   ): Promise<void> {
-    const sanitizedBrandName = brandName
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '_');
-    const fileExtension = file.mimetype.split('/')[1];
     return await this.creatorRepository.deleteFile(
-      'brand-profile-pic',
-      `${sanitizedBrandName}/profilepic.${fileExtension}`,
+      'creator-profile-pictures',
+      `${clipperId}/profilepic`,
     );
   }
 }
