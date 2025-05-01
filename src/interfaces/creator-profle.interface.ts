@@ -10,4 +10,5 @@ export interface CreatorProfileInterface {
   platform: Platform;
   niche: Niche;
   country: string;
+  brandProfilePic: string | null;
 }
