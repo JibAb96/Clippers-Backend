@@ -6,7 +6,7 @@ import {
 import { SupabaseService } from '../supabase/supabase.service';
 import { camelToSnake } from '../utility/camelToSnake';
 import { CreatorProfileInterface } from '../interfaces/creator-profle.interface';
-import { UploadFileResponse } from '../auth/interfaces/upload-response.interface';
+import { UploadFileResponse } from '../interfaces/upload-response.interface';
 
 @Injectable()
 export class CreatorsRepository {
@@ -100,6 +100,7 @@ export class CreatorsRepository {
       );
     }
   }
+  
   async uploadedFile(
     file: Express.Multer.File,
     bucket: string,
