@@ -12,5 +12,5 @@ export interface ClipperInterface {
   country: string;
   followerCount: number;
   pricePerPost: number;
-  brandProfilePic: string | null;
+  brandProfilePicture: string | null;
 }
