@@ -77,6 +77,4 @@ export class RegisterClipperDto {
   })
   password: string;
 
-  @IsString()
-  confirmPassword: string;
 }
