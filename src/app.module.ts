@@ -1,23 +1,27 @@
 import { Module, ValidationPipe } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ClipperProfilesModule } from './clippers/clippers.module';
+import { ClippersModule } from './clippers/clippers.module';
 import { ConfigModule } from '@nestjs/config';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { CreatorsModule } from "./creators/creators.module";
 import { APP_PIPE } from "@nestjs/core";
+import { ClipsModule } from './clips/clips.module';
+import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: `./src/.env.${process.env.NODE_ENV}`,
+      envFilePath: `./.env.${process.env.NODE_ENV}`,
     }),
     CreatorsModule,
-    ClipperProfilesModule,
+    ClippersModule,
     SupabaseModule,
     AuthModule,
+    ClipsModule,
+    SeedModule,
   ],
   controllers: [AppController],
   providers: [
