@@ -39,7 +39,7 @@ export class PortfolioRepository {
       .from('portfolio_images')
       .select('*')
       .eq('clipper_id', id)
-      .order('position', { ascending: true });
+      
 
     if (error) {
       this.logger.error(
