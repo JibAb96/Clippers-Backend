@@ -12,17 +12,14 @@ import {
   UploadedFiles,
   UseGuards,
   UseInterceptors,
-  Query,
 } from '@nestjs/common';
 import { ClippersFacadeService } from './clippers-facade.service';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { UploadImageDto } from '../dtos/upload-image.dto';
 import { SupabaseAuthGuard } from '../guards/supabase-auth.guard';
 import { CreateGuidelineDto } from './dtos/guidelines.dto';
-import { GuidleinesInterface } from './interfaces/guidlines.interface';
+import { GuidelinesInterface } from './interfaces/guidlines.interface';
 import { CurrentUser } from "../decorators/current-user.decorator";
 import { SupabaseUser } from "../interfaces/auth-request.interface";
-import { UploadFileResponse } from "../interfaces/upload-response.interface";
 import { ApiResponse } from "../interfaces/api.interface";
 import { PortfolioResponse } from "./interfaces/portfolio-response.interface";
 import { ClipperInterface } from "../interfaces/clipper-profile.interface";
@@ -82,7 +79,7 @@ export class ClippersController {
   }
 
   @UseGuards(SupabaseAuthGuard)
-  @Delete('/delete-clipper-image')
+  @Delete('delete-clipper-image')
   async deleteClipperImage(
     @CurrentUser() currentUser: SupabaseUser,
   ): Promise<ApiResponse<{ success: boolean; message: string }>> {
@@ -93,6 +90,18 @@ export class ClippersController {
       status: 'success',
       data: response,
       message: response.message,
+    };
+  }
+  
+  @Get('/portfolio-images/:userId')
+  async getPortfolioImages(
+    @Param('userId') userId: string,
+  ): Promise<ApiResponse<PortfolioResponse[]>> {
+    const response = await this.clippersFacade.getPortfolioImages(userId);
+    return {
+      status: 'success',
+      data: response,
+      message: 'Portfolio images retrieved successfully',
     };
   }
 
@@ -147,12 +156,24 @@ export class ClippersController {
     };
   }
 
+  @Get('/guidelines/:userId')
+  async getGuidelines(
+    @Param('userId') userId: string,
+  ): Promise<ApiResponse<string[] | null>> {
+    const response = await this.clippersFacade.getGuidelines(userId);
+    return {
+      status: 'success',
+      data: response,
+      message: 'Guidelines successfully retrieved',
+    };
+  }
+
   @UseGuards(SupabaseAuthGuard)
-  @Post('guidelines')
+  @Post('submit-guidelines')
   async createGuidelines(
     @Body() body: CreateGuidelineDto,
     @CurrentUser() currentUser: SupabaseUser,
-  ): Promise<ApiResponse<GuidleinesInterface>> {
+  ): Promise<ApiResponse<GuidelinesInterface>> {
     const response = await this.clippersFacade.createGuidelines({
       ...body,
       clipperId: currentUser.id,
@@ -168,7 +189,7 @@ export class ClippersController {
   @Patch('guidelines/:id')
   async updateGuidelines(
     @Param('id') id: string,
-    @Body() body: GuidleinesInterface,
+    @Body() body: GuidelinesInterface,
   ) {
     const response = await this.clippersFacade.updateGuidelines(id, body);
     return {
