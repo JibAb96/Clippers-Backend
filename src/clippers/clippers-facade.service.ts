@@ -8,8 +8,7 @@ import {
 import { ClippersService } from './clippers.service';
 import { PortfolioService } from './portforlio.service';
 import { GuidelinesService } from './guidelines.service';
-import { UploadFileResponse } from '../interfaces/upload-response.interface';
-import { GuidleinesInterface } from './interfaces/guidlines.interface';
+import { GuidelinesInterface } from './interfaces/guidlines.interface';
 import { PortfolioResponse } from './interfaces/portfolio-response.interface';
 import { v4 as uuidv4 } from 'uuid';
 import { ClipperInterface } from '../interfaces/clipper-profile.interface';
@@ -42,7 +41,7 @@ export class ClippersFacadeService {
       clipperId,
     );
     return await this.clippersService.update(clipperId, {
-      brandProfilePic: response.url,
+      brandProfilePicture: response.url,
     });
   }
 
@@ -51,7 +50,7 @@ export class ClippersFacadeService {
   ): Promise<{ success: boolean; message: string }> {
     // Get the current profile to restore if needed
     const profile = await this.clippersService.findOneById(clipperId);
-    const previousProfilePic = profile?.brandProfilePic ?? null;
+    const previousProfilePic = profile?.brandProfilePicture ?? null;
     let message: string = '';
 
     try {
@@ -88,6 +87,11 @@ export class ClippersFacadeService {
   }
 
   // Portfolio
+
+  async getPortfolioImages(userId: string) {
+    return this.portfolioService.findAll(userId);
+  }
+
   async uploadPortfolioImage(images: Express.Multer.File[], clipperId: string) {
     
     const results: PortfolioResponse[] = [];
@@ -134,11 +138,15 @@ export class ClippersFacadeService {
   }
 
   // Guidelines
-  async createGuidelines(body: GuidleinesInterface) {
+  async getGuidelines(userId: string) {
+    return this.guidelinesService.findAllByClipperId(userId);
+  }
+
+  async createGuidelines(body: GuidelinesInterface) {
     return this.guidelinesService.create(body);
   }
 
-  async updateGuidelines(id: string, body: GuidleinesInterface) {
+  async updateGuidelines(id: string, body: GuidelinesInterface) {
     const findGuideline = await this.guidelinesService.findOneById(id);
     if (!findGuideline) {
       throw new NotFoundException('Guideline not found');
