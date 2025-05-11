@@ -136,7 +136,7 @@ export class ClippersRepository {
         return { url: publicUrl, path: path };
       } catch (error) {
         this.logger.error(
-          `Unable to upload user profile picture: ${error.message}`,
+          `Unable to upload clipper profile picture: ${error.message}`,
           error.stack,
         );
         throw new InternalServerErrorException(
