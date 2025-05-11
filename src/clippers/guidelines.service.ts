@@ -1,13 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { GuidelinesRepository } from './guidlelines.repository';
-import { GuidleinesInterface } from './interfaces/guidlines.interface';
+import { GuidelinesInterface, GuidelinesResponse } from './interfaces/guidlines.interface';
 import camelcaseKeys from 'camelcase-keys';
 
 @Injectable()
 export class GuidelinesService {
   constructor(private readonly guidlinesRepository: GuidelinesRepository) {}
 
-  async create(guideline: GuidleinesInterface) {
+  async findAllByClipperId(
+    clipperId: string,
+  ): Promise<string[] | null> {
+    let guidelines: string[] = []
+    let rawResponse =
+      await this.guidlinesRepository.findAllByClipperId(clipperId);
+    if (!rawResponse) {
+      return null;
+    }
+    rawResponse = camelcaseKeys(rawResponse)
+    // Assuming rawResponse is an array of objects
+    rawResponse.map((item: GuidelinesResponse) => guidelines.push(item.guideline))
+    return guidelines
+  }
+
+  async create(guideline: GuidelinesInterface) {
     const response = await this.guidlinesRepository.create(guideline);
     return camelcaseKeys(response);
   }
@@ -17,7 +32,7 @@ export class GuidelinesService {
     return camelcaseKeys(response);
   }
 
-  async update(id: string, guideline: GuidleinesInterface) {
+  async update(id: string, guideline: GuidelinesInterface) {
     const response = await this.guidlinesRepository.update(id, guideline);
     return camelcaseKeys(response);
   }
