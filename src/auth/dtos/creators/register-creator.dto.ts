@@ -56,7 +56,5 @@ export class RegisterCreatorDto {
   })
   password: string;
 
-  @IsString()
-  confirmPassword: string;
 
 }
