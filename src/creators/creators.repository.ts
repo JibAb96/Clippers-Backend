@@ -25,7 +25,7 @@ export class CreatorsRepository {
         error.stack,
       );
       throw new InternalServerErrorException(
-        'There was an internal server error finding user',
+        'Unable to find user',
       );
     }
     return data;
@@ -119,7 +119,7 @@ export class CreatorsRepository {
         error.stack,
       );
       throw new InternalServerErrorException(
-        'There was an internal server error creating user',
+        'There was an internal server error uploading creator profile image',
       );
     }
   }
