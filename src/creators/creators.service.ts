@@ -55,12 +55,13 @@ export class CreatorsService {
   async uploadProfilePicture(
     file: Express.Multer.File,
     userId: string,
-  ): Promise<UploadFileResponse> {
-    return await this.creatorRepository.uploadedFile(
+  ): Promise<string> {
+    const response = await this.creatorRepository.uploadedFile(
       file,
       'creator-profile-pictures',
       `${userId}/profilepic`,
     );
+    return response.url;
   }
   async deleteImage(
     clipperId: string,
