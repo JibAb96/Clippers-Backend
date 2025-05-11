@@ -3,19 +3,25 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
-import { SupabaseService } from '../supabase/supabase.service';
+import { SupabaseAuthClientService } from '../supabase/supabase-auth-client.service';
 import { RequestWithUser } from '../interfaces/auth-request.interface';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  private readonly logger = new Logger(SupabaseAuthGuard.name);
+
+  constructor(
+    private readonly supabaseAuthClientService: SupabaseAuthClientService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      this.logger.warn('Missing or invalid Authorization Bearer header.');
       throw new UnauthorizedException('Missing or invalid token');
     }
 
@@ -23,18 +29,36 @@ export class SupabaseAuthGuard implements CanActivate {
 
     try {
       const { data, error } =
-        await this.supabaseService.client.auth.getUser(token);
+        await this.supabaseAuthClientService.client.auth.getUser(token);
 
-      if (error || !data.user) {
+      if (error) {
+        this.logger.warn(
+          `Token validation error: ${error.message}`,
+          error.stack,
+        );
         throw new UnauthorizedException('Invalid token');
       }
+      if (!data || !data.user) {
+        this.logger.warn('Token validation returned no user data.');
+        throw new UnauthorizedException('Invalid token, no user data found.');
+      }
+
       (request as RequestWithUser).user = {
         id: data.user.id,
         email: data.user.email,
       };
       return true;
     } catch (error) {
-      throw new UnauthorizedException('Invalid token');
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      this.logger.error(
+        `Unexpected error during token validation: ${error.message}`,
+        error.stack,
+      );
+      throw new UnauthorizedException(
+        'Invalid token due to an unexpected error.',
+      );
     }
   }
 }
