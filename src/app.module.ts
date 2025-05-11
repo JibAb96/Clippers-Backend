@@ -8,7 +8,6 @@ import { AuthModule } from './auth/auth.module';
 import { CreatorsModule } from "./creators/creators.module";
 import { APP_PIPE } from "@nestjs/core";
 import { ClipsModule } from './clips/clips.module';
-import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
@@ -21,7 +20,6 @@ import { SeedModule } from './seed/seed.module';
     SupabaseModule,
     AuthModule,
     ClipsModule,
-    SeedModule,
   ],
   controllers: [AppController],
   providers: [
