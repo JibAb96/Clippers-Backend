@@ -8,6 +8,7 @@ import {
   HttpStatus,
   ConflictException,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreatorsService } from '../creators/creators.service';
@@ -19,6 +20,8 @@ import { UserResponse } from '../interfaces/user-auth-response.interface';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { ClippersService } from 'src/clippers/clippers.service';
 import { RegisterClipperDto } from 'src/auth/dtos/clippers/register-clipper.dto';
+import { UploadFileResponse } from '../interfaces/upload-response.interface';
+import { ClipperInterface } from "src/interfaces/clipper-profile.interface";
 @Injectable()
 export class UserFacadeService {
   private readonly logger = new Logger(UserFacadeService.name);
@@ -29,16 +32,13 @@ export class UserFacadeService {
     private readonly clippersService: ClippersService,
   ) {}
 
-  async registerCreator(userData: RegisterCreatorDto): Promise<UserResponse> {
-    if (userData.password !== userData.confirmPassword) {
-      throw new BadRequestException('Password and confirm password must match');
-    }
+  async registerCreator(form: RegisterCreatorDto): Promise<UserResponse> {
     let authData: AuthResponse | null = null;
     let profileCreated = false;
     try {
       authData = await this.authService.register({
-        email: userData.email,
-        password: userData.password,
+        email: form.email,
+        password: form.password,
       });
       if (!authData?.id) {
         this.logger.error('Auth registration failed to return a user ID');
@@ -47,16 +47,17 @@ export class UserFacadeService {
         );
       }
 
-      const { confirmPassword, password, ...user } = userData;
+      const { password, ...user } = form;
       const userProfile = await this.creatorsService.create({
         id: authData.id,
         ...user,
-        brandProfilePic: null,
+        brandProfilePicture: null,
       });
       profileCreated = true;
 
       return {
         user: userProfile,
+        role: 'creator',
         token: authData.token,
         refreshToken: authData.refreshToken,
       };
@@ -94,9 +95,6 @@ export class UserFacadeService {
   }
 
   async registerClipper(form: RegisterClipperDto): Promise<UserResponse> {
-    if (form.password !== form.confirmPassword) {
-      throw new BadRequestException('Password and confirm password must match');
-    }
     let authData: AuthResponse | null = null;
     let profileCreated = false;
     try {
@@ -111,16 +109,17 @@ export class UserFacadeService {
         );
       }
 
-      const { confirmPassword, password, ...fields } = form;
+      const { password, ...fields } = form;
       const clipperProfile = await this.clippersService.create({
         id: authData.id,
-        brandProfilePic: null,
+        brandProfilePicture: null,
         ...fields,
       });
       profileCreated = true;
 
       return {
         user: clipperProfile,
+        role: 'clipper',
         token: authData.token,
         refreshToken: authData.refreshToken,
       };
@@ -161,53 +160,61 @@ export class UserFacadeService {
 
   async authenticateCreator(credentials: SignInUserDto): Promise<UserResponse> {
     const authData: AuthResponse = await this.authenticateUser(credentials);
+    let creatorProfile: CreatorProfileInterface | null = null;
     try {
       if (authData.id) {
-        const creatorProfile = await this.creatorsService.findOneById(
-          authData.id,
-        );
+        creatorProfile = await this.creatorsService.findOneById(authData.id);
         if (!creatorProfile) {
           throw new NotFoundException(
             'Authentication succeeded but profile not found',
           );
         }
-        return {
-          user: creatorProfile,
-          token: authData.token,
-          refreshToken: authData.refreshToken,
-        };
       }
-      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
+      return {
+        user: creatorProfile,
+        role: 'creator',
+        token: authData.token,
+        refreshToken: authData.refreshToken,
+      };
     } catch (error) {
-      this.logger.error(`Signin failed: ${error.message}`, error.stack);
+      this.logger.error(`Login failed: ${error.message}`, error.stack);
       if (error instanceof NotFoundException) throw error;
-      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
+      if (error.message === 'Invalid login credentials') {
+        throw new UnauthorizedException('Invalid login credentials');
+      }
+      throw new InternalServerErrorException(
+        'There was an internal server error during login process.',
+      );
     }
   }
 
   async authenticateClipper(credentials: SignInUserDto): Promise<UserResponse> {
     const authData: AuthResponse = await this.authenticateUser(credentials);
+    let clipperProfile: ClipperInterface | null = null;
     try {
       if (authData.id) {
-        const clipperProfile = await this.clippersService.findOneById(
-          authData.id,
-        );
+        clipperProfile = await this.clippersService.findOneById(authData.id);
         if (!clipperProfile) {
           throw new NotFoundException(
             'Authentication succeeded but profile not found',
           );
         }
-        return {
-          user: clipperProfile,
-          token: authData.token,
-          refreshToken: authData.refreshToken,
-        };
       }
-      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
+      return {
+        user: clipperProfile,
+        role: 'clipper',
+        token: authData.token,
+        refreshToken: authData.refreshToken,
+      };
     } catch (error) {
       this.logger.error(`Signin failed: ${error.message}`, error.stack);
       if (error instanceof NotFoundException) throw error;
-      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
+      if (error.message === 'Invalid login credentials') {
+        throw new UnauthorizedException('Invalid login credentials');
+      }
+      throw new InternalServerErrorException(
+        'There was an internal server error during login process.',
+      );
     }
   }
 
@@ -223,12 +230,12 @@ export class UserFacadeService {
 
   async updateUserProfile(
     userId: string,
-    userData: UpdateCreatorDto,
+    form: UpdateCreatorDto,
     requestUser: any,
   ): Promise<CreatorProfileInterface> {
     this.ensureSameUser(userId, requestUser);
     try {
-      return await this.creatorsService.update(userId, userData);
+      return await this.creatorsService.update(userId, form);
     } catch (error) {
       this.logger.error(`Updating user failed: ${error.message}`, error.stack);
       if (
@@ -246,14 +253,57 @@ export class UserFacadeService {
     image: Express.Multer.File,
     userId: string,
   ): Promise<string | null> {
+    const creator = await this.creatorsService.findOneById(userId);
+    if (!creator) {
+      throw new NotFoundException('Creator not found');
+    }
     let imageUrl: string | null = null;
     try {
-      const response = await this.creatorsService.uploadProfilePicture(
+      imageUrl = await this.creatorsService.uploadProfilePicture(image, userId);
+      try {
+        await this.creatorsService.update(userId, {
+          brandProfilePicture: imageUrl,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Updating the creator profile table failed: ${error.message}`,
+          error.stack,
+        );
+        throw error;
+      }
+    } catch (error) {
+      this.logger.error(
+        `Image upload or update failed: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof NotFoundException) throw error;
+      throw error;
+    }
+    return 'image uploaded successfully';
+  }
+
+  async uploadClipperImage(
+    image: Express.Multer.File,
+    userId: string,
+  ): Promise<string | null> {
+    let imageUrl: string | null = null;
+    try {
+      const response = await this.clippersService.uploadProfilePicture(
         image,
         userId,
       );
       imageUrl = response?.url || null;
-      await this.creatorsService.update(userId, { brandProfilePic: imageUrl });
+      try {
+        await this.clippersService.update(userId, {
+          brandProfilePicture: imageUrl,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Updating the clipper profile table failed: ${error.message}`,
+          error.stack,
+        );
+        throw error;
+      }
     } catch (error) {
       this.logger.error(
         `Image upload or update failed: ${error.message}`,
@@ -297,11 +347,11 @@ export class UserFacadeService {
 
     // Get the current profile to restore if needed
     const profile = await this.creatorsService.findOneById(userId);
-    const previousProfilePic = profile?.brandProfilePic ?? null;
+    const previousProfilePic = profile?.brandProfilePicture ?? null;
 
     try {
-      // Set the brandProfilePic column to null
-      await this.creatorsService.update(userId, { brandProfilePic: null });
+      // Set the brandProfilePicture column to null
+      await this.creatorsService.update(userId, { brandProfilePicture: null });
 
       try {
         // Delete the image from the bucket
@@ -309,7 +359,7 @@ export class UserFacadeService {
       } catch (bucketError) {
         // Rollback the DB update if bucket deletion fails
         await this.creatorsService.update(userId, {
-          brandProfilePic: previousProfilePic,
+          brandProfilePicture: previousProfilePic,
         });
         this.logger.error(
           `Deleting profile image from bucket failed: ${bucketError.message}`,
