@@ -5,23 +5,32 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SupabaseService } from 'src/supabase/supabase.service';
-import { AuthResponse } from "./interfaces/auth-response.interface";
+import { SupabaseAuthClientService } from 'src/supabase/supabase-auth-client.service';
+import { AuthResponse } from './interfaces/auth-response.interface';
 
 @Injectable()
 export class AuthRepository {
-  constructor(private supabaseService: SupabaseService) {}
   private readonly logger = new Logger(AuthRepository.name);
+
+  constructor(
+    private supabaseService: SupabaseService,
+    private supabaseAuthClientService: SupabaseAuthClientService,
+  ) {}
 
   async register(email: string, password: string): Promise<AuthResponse> {
     console.log('Raw email input:', email);
     console.log('Email after trim:', email.trim());
-    const { data, error } = await this.supabaseService.client.auth.signUp({
-      email,
-      password,
-    });
+    const { data, error } =
+      await this.supabaseAuthClientService.client.auth.signUp({
+        email,
+        password,
+      });
 
     if (error) {
       this.logger.error(`Registration failed: ${error.message}`, error.stack);
+      if (error.message == 'User already registered') {
+        throw new InternalServerErrorException('User already registered');
+      }
       throw new InternalServerErrorException(
         'There was an internal server error during registration',
       );
@@ -35,7 +44,7 @@ export class AuthRepository {
 
   async login(email: string, password: string): Promise<AuthResponse> {
     const { data, error } =
-      await this.supabaseService.client.auth.signInWithPassword({
+      await this.supabaseAuthClientService.client.auth.signInWithPassword({
         email,
         password,
       });
@@ -44,11 +53,21 @@ export class AuthRepository {
       this.logger.error(`Login failed: ${error.message}`, error.stack);
       if (error.message === 'Email not confirmed') {
         throw new BadRequestException(
-          'Email not confirmed. Please check your email for the confirmation link.')
+          'Email not confirmed. Please check your email for the confirmation link.',
+        );
       }
-
+      if (error.message === 'Invalid login credentials') {
+        throw error;
+      }
       throw new InternalServerErrorException(
-        'There was an internal server error during registration',
+        'There was an internal server error during login process.',
+      );
+    }
+
+    if (!data || !data.user || !data.session) {
+      this.logger.error('Login response missing user or session data.');
+      throw new InternalServerErrorException(
+        'Invalid login response from authentication service.',
       );
     }
 
@@ -56,7 +75,7 @@ export class AuthRepository {
       id: data.user.id,
       token: data.session.access_token,
       refreshToken: data.session.refresh_token,
-    };;
+    };
   }
 
   async deleteUser(id: string): Promise<void> {
