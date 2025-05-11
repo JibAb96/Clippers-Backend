@@ -20,15 +20,24 @@ export class SupabaseService implements OnModuleInit {
   private readonly logger = new Logger(SupabaseService.name);
 
   onModuleInit() {
-    this.supabaseClient = createClient(
-      this.configService.get('SUPABASE_URL') || '',
-      this.configService.get<string>('SUPABASE_KEY') || '',
-      {
-        auth: {
-          persistSession: false,
-        },
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
+    const supabaseKey = this.configService.get<string>('SUPABASE_KEY'); // Use the correct key (anon or service_role)
+    if (!supabaseUrl) {
+      this.logger.error('SUPABASE_URL not found in environment variables.');
+      throw new Error('SUPABASE_URL is required.'); // Early exit if missing
+    }
+    if (!supabaseKey) {
+      this.logger.error('SUPABASE_KEY not found in environment variables.');
+      throw new Error('SUPABASE_KEY is required.'); // Early exit if missing
+    }
+
+    this.logger.log('Initializing Supabase client...');
+    this.supabaseClient = createClient(supabaseUrl || '', supabaseKey || '', {
+      auth: {
+        persistSession: false,
       },
-    );
+    });
+    this.logger.log('Supabase client initialized.');
   }
   get client(): SupabaseClient {
     return this.supabaseClient;
@@ -39,24 +48,18 @@ export class SupabaseService implements OnModuleInit {
     bucket: string,
     path: string,
   ): Promise<string> {
-    try {
       const { error } = await this.supabaseClient.storage
         .from(bucket)
         .upload(path, file.buffer, {
           contentType: file.mimetype,
-          upsert: true,
+          upsert: false,
         });
 
       if (error) {
-        console.log('Attempting to upload to bucket:', bucket);
-        console.log('Attempting to upload to path:', path);
-        console.log('Attempting to upload with file.mimetype:', file.mimetype);
-        console.log('Attempting to upload with file.mimetype:', file.buffer);
         this.logger.error(
           `Error uploading file: ${error.message}`,
           error.stack,
         );
-
         if (error.message.includes('bucket not found')) {
           throw new NotFoundException(`Resource not found`);
         }
@@ -67,18 +70,7 @@ export class SupabaseService implements OnModuleInit {
         data: { publicUrl },
       } = this.supabaseClient.storage.from(bucket).getPublicUrl(path);
       return publicUrl;
-    } catch (error) {
-      this.logger.error(
-        `Unexpected error uploading file: ${error.message}`,
-        error.stack,
-      );
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        'Unable to upload file. Please try again later.',
-      );
-    }
+    
   }
 
   async deleteFile(bucket: string, path: string): Promise<void> {
