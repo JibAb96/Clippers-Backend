@@ -1,16 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { ClippersRepository } from "./clippers.repository"
-import { ClipperInterface } from "../interfaces/clipper-profile.interface";
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { ClippersRepository } from './clippers.repository';
+import { ClipperInterface } from '../interfaces/clipper-profile.interface';
 import camelCaseKeys from 'camelcase-keys';
-import { UploadFileResponse } from "../interfaces/upload-response.interface";
+import { UploadFileResponse } from '../interfaces/upload-response.interface';
 
 @Injectable()
 export class ClippersService {
   constructor(private readonly clippersRepository: ClippersRepository) {}
   async findAll(): Promise<ClipperInterface[] | null> {
-  
-    const userData = await this.clippersRepository.findAll();
-    return userData
+    const rawUserData = await this.clippersRepository.findAll();
+    if (!rawUserData) {
+      return null;
+    }
+    // Assuming rawUserData is an array of objects that need their keys camelCased
+    const userData = Array.isArray(rawUserData)
+      ? rawUserData.map((user) => camelCaseKeys(user as any))
+      : camelCaseKeys(rawUserData as any); // Fallback if it's a single object, though findAll implies array
+
+    return userData as unknown as ClipperInterface[];
   }
   async findOneById(id: string): Promise<ClipperInterface | null> {
     if (!id) {
@@ -30,6 +37,7 @@ export class ClippersService {
 
   async create(user: ClipperInterface): Promise<ClipperInterface> {
     const userData = await this.clippersRepository.create(user);
+
     return camelCaseKeys(userData) as ClipperInterface;
   }
 
@@ -54,26 +62,26 @@ export class ClippersService {
   }
 
   async uploadProfilePicture(
-      image: Express.Multer.File,
-      clipperId: string,
-    ): Promise<UploadFileResponse> {
-      const file = await this.clippersRepository.uploadedFile(
-        image,
-        'clipper-profile-pictures',
-        `${clipperId}/profilepic`,
-      );
-      return file;
+    image: Express.Multer.File,
+    clipperId: string,
+  ): Promise<UploadFileResponse> {
+    const file = await this.clippersRepository.uploadedFile(
+      image,
+      'clipper-profile-pictures',
+      `${clipperId}/profilepic`,
+    );
+    return file;
   }
   async deleteImage(
     clipperID: string,
-  ): Promise<{success: boolean, message: string}> {
-     await this.clippersRepository.deleteFile(
+  ): Promise<{ success: boolean; message: string }> {
+    await this.clippersRepository.deleteFile(
       'clipper-profile-pictures',
       `${clipperID}/profilepic`,
     );
     return {
       success: true,
       message: 'Clipper image deleted successfully',
-    }
+    };
   }
 }
