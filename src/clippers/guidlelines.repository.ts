@@ -6,12 +6,18 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { camelToSnake } from '../utility/camelToSnake';
-import { GuidleinesInterface } from "./interfaces/guidlines.interface";
+import { GuidelinesInterface } from "./interfaces/guidlines.interface";
 @Injectable()
 export class GuidelinesRepository {
   constructor(private supabaseService: SupabaseService) {}
   private readonly logger = new Logger(GuidelinesRepository.name);
-
+  async findAllByClipperId(clipperId: string) {
+    const { data, error } = await this.supabaseService.client
+      .from('clipper_guidelines')
+      .select('*')
+      .eq('clipper_id', clipperId);
+    return data;
+  }
   async findOneById(id: string) {
 
     const { data, error } = await this.supabaseService.client
@@ -37,7 +43,7 @@ export class GuidelinesRepository {
   }
   
 
-  async create(userData: GuidleinesInterface) {
+  async create(userData: GuidelinesInterface) {
     const snakeCaseData = camelToSnake(userData);
     console.log(snakeCaseData);
     const { data, error } = await this.supabaseService.client
@@ -55,7 +61,7 @@ export class GuidelinesRepository {
     return data;
   }
 
-  async update(id: string, userData: GuidleinesInterface) {
+  async update(id: string, userData: GuidelinesInterface) {
     const snakeCaseData = camelToSnake(userData);
     const { data, error } = await this.supabaseService.client
       .from('clipper_guidelines')
