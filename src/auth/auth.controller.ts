@@ -55,7 +55,9 @@ export class AuthController {
   }
 
   @Post('/login/creator')
-  async loginCreator(@Body() body: SignInUserDto): Promise<ApiResponse<UserResponse>> {
+  async loginCreator(
+    @Body() body: SignInUserDto,
+  ): Promise<ApiResponse<UserResponse>> {
     const response = await this.userFacade.authenticateCreator(body);
     return {
       status: 'success',
@@ -65,7 +67,9 @@ export class AuthController {
   }
 
   @Post('/login/clipper')
-  async loginClipper(@Body() body: SignInUserDto): Promise<ApiResponse<UserResponse>> {
+  async loginClipper(
+    @Body() body: SignInUserDto,
+  ): Promise<ApiResponse<UserResponse>> {
     const response = await this.userFacade.authenticateClipper(body);
     return {
       status: 'success',
@@ -73,7 +77,6 @@ export class AuthController {
       message: 'Clipper logged in successfully',
     };
   }
-
   @UseGuards(SupabaseAuthGuard)
   @Post('/upload-creator-image')
   @UseInterceptors(FileInterceptor('image'))
@@ -91,15 +94,47 @@ export class AuthController {
         }),
     )
     image: Express.Multer.File,
-    @CurrentUser()
-    currentUser: SupabaseUser,
-  ) {
+    @CurrentUser() currentUser: SupabaseUser,
+  ): Promise<ApiResponse<string | null>> {
     console.log('image:', image);
-    const response = await this.userFacade.uploadCreatorImage(image, currentUser.id);
+    const response = await this.userFacade.uploadCreatorImage(
+      image,
+      currentUser.id,
+    );
     return {
       status: 'success',
       data: response,
       message: 'Image successfully uploaded',
+    };
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Post('/upload-clipper-image')
+  @UseInterceptors(FileInterceptor('image'))
+  async uploadClipperImage(
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: /(jpg|jpeg|png|webp)/,
+        })
+        .addMaxSizeValidator({
+          maxSize: 1024 * 1024 * 2, // 2MB
+        })
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    image: Express.Multer.File,
+    @CurrentUser() currentUser: SupabaseUser,
+  ): Promise<ApiResponse<string | null>> {
+    const response = await this.userFacade.uploadClipperImage(
+      image,
+      currentUser.id,
+    );
+    return {
+      status: 'success',
+      data: response,
+      message: 'Clipper image successfully uploaded',
     };
   }
 
