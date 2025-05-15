@@ -18,10 +18,10 @@ import { UpdateCreatorDto } from './dtos/creators/update-creator.dto';
 import { CreatorProfileInterface } from '../interfaces/creator-profle.interface';
 import { UserResponse } from '../interfaces/user-auth-response.interface';
 import { AuthResponse } from './interfaces/auth-response.interface';
-import { ClippersService } from 'src/clippers/clippers.service';
-import { RegisterClipperDto } from 'src/auth/dtos/clippers/register-clipper.dto';
-import { UploadFileResponse } from '../interfaces/upload-response.interface';
-import { ClipperInterface } from "src/interfaces/clipper-profile.interface";
+import { ClippersService } from '../clippers/clippers.service';
+import { RegisterClipperDto } from '../auth/dtos/clippers/register-clipper.dto';
+import { ClipperInterface } from '../interfaces/clipper-profile.interface';
+import { UpdateClipperDto } from './dtos/clippers/update-clipper.dto';
 @Injectable()
 export class UserFacadeService {
   private readonly logger = new Logger(UserFacadeService.name);
@@ -220,20 +220,15 @@ export class UserFacadeService {
 
   async getUserProfile(
     userId: string,
-    requestUser: any,
   ): Promise<CreatorProfileInterface | null> {
-    this.ensureSameUser(userId, requestUser);
-
     const profile = await this.creatorsService.findOneById(userId);
     return profile;
   }
 
   async updateUserProfile(
-    userId: string,
     form: UpdateCreatorDto,
-    requestUser: any,
+    userId: string,
   ): Promise<CreatorProfileInterface> {
-    this.ensureSameUser(userId, requestUser);
     try {
       return await this.creatorsService.update(userId, form);
     } catch (error) {
@@ -245,6 +240,28 @@ export class UserFacadeService {
         throw error;
       throw new InternalServerErrorException(
         'There was an internal server error updating user',
+      );
+    }
+  }
+
+  async updateClipperProfile(
+    userId: string,
+    form: UpdateClipperDto,
+  ): Promise<ClipperInterface> {
+    try {
+      return await this.clippersService.update(userId, form);
+    } catch (error) {
+      this.logger.error(
+        `Updating clipper profile failed: ${error.message}`,
+        error.stack,
+      );
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      )
+        throw error;
+      throw new InternalServerErrorException(
+        'There was an internal server error updating clipper profile',
       );
     }
   }
@@ -317,8 +334,7 @@ export class UserFacadeService {
     return imageUrl;
   }
 
-  async deleteUser(userId: string, requestUser: any) {
-    this.ensureSameUser(userId, requestUser);
+  async deleteUser(userId: string) {
     try {
       await this.authService.deleteUser(userId);
       return {
@@ -340,10 +356,7 @@ export class UserFacadeService {
 
   async deleteProfileImage(
     userId: string,
-    clipperId: string,
-    requestUser: any,
   ): Promise<{ success: boolean; message: string }> {
-    this.ensureSameUser(userId, requestUser);
 
     // Get the current profile to restore if needed
     const profile = await this.creatorsService.findOneById(userId);
@@ -355,7 +368,7 @@ export class UserFacadeService {
 
       try {
         // Delete the image from the bucket
-        await this.creatorsService.deleteImage(clipperId);
+        await this.creatorsService.deleteImage(userId);
       } catch (bucketError) {
         // Rollback the DB update if bucket deletion fails
         await this.creatorsService.update(userId, {
@@ -390,13 +403,6 @@ export class UserFacadeService {
     }
   }
 
-  private ensureSameUser(userId: string, requestUser: Record<string, any>) {
-    if (userId !== requestUser.id) {
-      throw new ForbiddenException(
-        'You can only access your own account information',
-      );
-    }
-  }
 
   private async authenticateUser(credentials: SignInUserDto) {
     try {
