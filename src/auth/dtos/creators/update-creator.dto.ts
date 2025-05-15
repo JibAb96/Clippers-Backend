@@ -58,7 +58,5 @@ export class UpdateCreatorDto {
   })
   password?: string;
 
-  @IsString()
-  @Expose({ name: 'c_password' })
-  cPassword?: string;
+
 }
