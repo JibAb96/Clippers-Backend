@@ -25,6 +25,8 @@ import { SupabaseUser } from '../interfaces/auth-request.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RegisterClipperDto } from './dtos/clippers/register-clipper.dto';
 import { DeleteImageDto } from './dtos/creators/delete-image.dto';
+import { UpdateClipperDto } from './dtos/clippers/update-clipper.dto';
+import { ClipperInterface } from '../interfaces/clipper-profile.interface';
 
 @Controller('auth')
 export class AuthController {
@@ -139,12 +141,11 @@ export class AuthController {
   }
 
   @UseGuards(SupabaseAuthGuard)
-  @Get('/:id')
+  @Get('/get-user-profile')
   async findUser(
-    @Param('id') id: string,
     @CurrentUser() currentUser: SupabaseUser,
   ): Promise<ApiResponse<CreatorProfileInterface | null>> {
-    const response = await this.userFacade.getUserProfile(id, currentUser.id);
+    const response = await this.userFacade.getUserProfile(currentUser.id);
     return {
       status: 'success',
       data: response,
@@ -153,12 +154,11 @@ export class AuthController {
   }
 
   @UseGuards(SupabaseAuthGuard)
-  @Delete('/:id')
+  @Delete('/delete-user')
   async removeUser(
-    @Param('id') id: string,
     @CurrentUser() currentUser: SupabaseUser,
   ): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    const response = await this.userFacade.deleteUser(id, currentUser.id);
+    const response = await this.userFacade.deleteUser(currentUser.id);
     return {
       status: 'success',
       data: response,
@@ -166,14 +166,13 @@ export class AuthController {
     };
   }
   @UseGuards(SupabaseAuthGuard)
-  @Patch('/:id')
+  @Patch('/update-creator-profile')
   async updateUser(
     @Param('id') id: string,
     @Body() body: UpdateCreatorDto,
     @CurrentUser() currentUser: SupabaseUser,
   ): Promise<ApiResponse<CreatorProfileInterface>> {
     const response = await this.userFacade.updateUserProfile(
-      id,
       body,
       currentUser.id,
     );
@@ -185,15 +184,28 @@ export class AuthController {
   }
 
   @UseGuards(SupabaseAuthGuard)
-  @Delete('/:id/delete-image')
+  @Patch('/update-clipper-profile')
+  async updateClipperProfile(
+    @Body() body: UpdateClipperDto,
+    @CurrentUser() currentUser: SupabaseUser,
+  ): Promise<ApiResponse<ClipperInterface>> {
+    const response = await this.userFacade.updateClipperProfile(
+      currentUser.id,
+      body,
+    );
+    return {
+      status: 'success',
+      data: response,
+      message: 'Clipper profile updated successfully',
+    };
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Delete('/delete-creator-image')
   async deleteProfileImage(
-    @Param('id') id: string,
-    @Body() body: DeleteImageDto,
     @CurrentUser() currentUser: SupabaseUser,
   ): Promise<ApiResponse<{ success: boolean; message: string }>> {
     const response = await this.userFacade.deleteProfileImage(
-      id,
-      body.brandName,
       currentUser.id,
     );
     return {
