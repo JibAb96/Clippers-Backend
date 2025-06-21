@@ -24,9 +24,9 @@ import { CurrentUser } from '../decorators/current-user.decorator';
 import { SupabaseUser } from '../interfaces/auth-request.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RegisterClipperDto } from './dtos/clippers/register-clipper.dto';
-import { DeleteImageDto } from './dtos/creators/delete-image.dto';
 import { UpdateClipperDto } from './dtos/clippers/update-clipper.dto';
 import { ClipperInterface } from '../interfaces/clipper-profile.interface';
+import { ChangePasswordDto } from './dtos/change-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -141,15 +141,28 @@ export class AuthController {
   }
 
   @UseGuards(SupabaseAuthGuard)
-  @Get('/get-user-profile')
-  async findUser(
-    @CurrentUser() currentUser: SupabaseUser,
+  @Get('/creator/:id')
+  async getCreatorProfile(
+    @Param('id') id: string,
   ): Promise<ApiResponse<CreatorProfileInterface | null>> {
-    const response = await this.userFacade.getUserProfile(currentUser.id);
+    const response = await this.userFacade.getCreatorProfile(id);
     return {
       status: 'success',
       data: response,
-      message: 'User found successfully',
+      message: 'Creator profile found successfully',
+    };
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Get('/get-clipper-profile')
+  async getClipperProfile(
+    @CurrentUser() currentUser: SupabaseUser,
+  ): Promise<ApiResponse<ClipperInterface | null>> {
+    const response = await this.userFacade.getClipperProfile(currentUser.id);
+    return {
+      status: 'success',
+      data: response,
+      message: 'Clipper profile found successfully',
     };
   }
 
@@ -157,6 +170,7 @@ export class AuthController {
   @Delete('/delete-user')
   async removeUser(
     @CurrentUser() currentUser: SupabaseUser,
+    id: string
   ): Promise<ApiResponse<{ success: boolean; message: string }>> {
     const response = await this.userFacade.deleteUser(currentUser.id);
     return {
@@ -186,7 +200,7 @@ export class AuthController {
   @UseGuards(SupabaseAuthGuard)
   @Patch('/update-clipper-profile')
   async updateClipperProfile(
-    @Body() body: UpdateClipperDto,
+    @Body() body: any,
     @CurrentUser() currentUser: SupabaseUser,
   ): Promise<ApiResponse<ClipperInterface>> {
     const response = await this.userFacade.updateClipperProfile(
@@ -205,8 +219,21 @@ export class AuthController {
   async deleteProfileImage(
     @CurrentUser() currentUser: SupabaseUser,
   ): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    const response = await this.userFacade.deleteProfileImage(
-      currentUser.id,
+    const response = await this.userFacade.deleteProfileImage(currentUser.id);
+    return {
+      status: 'success',
+      data: response,
+      message: response.message,
+    };
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Patch('/change-password')
+  async changePassword(
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    const response = await this.userFacade.changePassword(
+      changePasswordDto.newPassword,
     );
     return {
       status: 'success',
