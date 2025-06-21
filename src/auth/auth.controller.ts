@@ -200,7 +200,7 @@ export class AuthController {
   @UseGuards(SupabaseAuthGuard)
   @Patch('/update-clipper-profile')
   async updateClipperProfile(
-    @Body() body: any,
+    @Body() body: UpdateClipperDto,
     @CurrentUser() currentUser: SupabaseUser,
   ): Promise<ApiResponse<ClipperInterface>> {
     const response = await this.userFacade.updateClipperProfile(
