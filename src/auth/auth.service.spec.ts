@@ -43,6 +43,9 @@ describe('AuthService', () => {
       deleteUser: (id: string) => {
         return Promise.resolve();
       },
+      changePassword: (password: string) => {
+        return Promise.resolve();
+      },
     };
     const module = await Test.createTestingModule({
       providers: [
@@ -61,7 +64,6 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
- 
   describe('register', () => {
     it('should register a new user successfully', async () => {
       const authDto: AuthDto = {
@@ -86,7 +88,6 @@ describe('AuthService', () => {
       };
       const registerSpy = jest.spyOn(fakeAuthRepository, 'register');
 
-    
       await service.register(authDto);
 
       expect(registerSpy).toHaveBeenCalledWith(authDto.email, authDto.password);
@@ -153,7 +154,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         password: 'password123',
       };
-      await service.register(authDto); 
+      await service.register(authDto);
 
       const expectedError = new Error('Login failed');
       jest
@@ -172,6 +173,28 @@ describe('AuthService', () => {
       await service.deleteUser(userId);
 
       expect(deleteUserSpy).toHaveBeenCalledWith(userId);
+    });
+  });
+
+  describe('changePassword', () => {
+    it('should call repository.changePassword with the correct password', async () => {
+      fakeAuthRepository.changePassword = jest
+        .fn()
+        .mockResolvedValue(undefined);
+      const password = 'newStrongPassword123';
+      await expect(service.changePassword(password)).resolves.toBeUndefined();
+      expect(fakeAuthRepository.changePassword).toHaveBeenCalledWith(password);
+    });
+
+    it('should propagate errors from the repository', async () => {
+      const expectedError = new Error('Change password failed');
+      fakeAuthRepository.changePassword = jest
+        .fn()
+        .mockRejectedValue(expectedError);
+      const password = 'newStrongPassword123';
+      await expect(service.changePassword(password)).rejects.toThrow(
+        expectedError,
+      );
     });
   });
 });
