@@ -12,10 +12,10 @@ import { Niche } from '../../../enums/niche.enum';
 import { Expose } from 'class-transformer';
 export class UpdateCreatorDto {
   @IsString()
-  @IsNotEmpty({ message: 'Name is required' })
+  @IsNotEmpty({ message: 'Full name is required' })
   @MinLength(2)
   @MaxLength(50)
-  name?: string;
+  fullName?: string;
 
   @IsString()
   @IsNotEmpty({ message: 'Brand name is required' })
