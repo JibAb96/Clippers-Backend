@@ -10,10 +10,10 @@ export class ClipFileDto {
   @IsArray()
   @ValidateNested({ each: true })
   @IsNotEmpty()
-  clip: Express.Multer.File;
+  videoFile: Express.Multer.File;
 
   @IsArray()
   @ValidateNested({ each: true })
   @IsNotEmpty()
-  thumbnail: Express.Multer.File;
+  thumbnailFile: Express.Multer.File;
 }
