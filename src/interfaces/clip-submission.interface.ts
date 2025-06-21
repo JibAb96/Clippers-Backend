@@ -7,6 +7,7 @@ export interface ClipSubmission {
   description: string;
   clipUrl: string;
   thumbnailUrl: string;
+  title: string;
   status: ClipStatus;
   createdAt: Date;
   updatedAt: Date;
