@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { CreatorsRepository } from './creators.repository';
 import { CreatorProfileInterface } from '../interfaces/creator-profle.interface';
-import camelCaseKeys from 'camelcase-keys';
+import { snakeToCamel } from '../utility/camelToSnake';
 import { UploadFileResponse } from '../interfaces/upload-response.interface';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class CreatorsService {
       return null;
     }
     const userData = await this.creatorRepository.findOneById(id);
-    return camelCaseKeys(userData) as CreatorProfileInterface;
+    return snakeToCamel(userData) as CreatorProfileInterface;
   }
 
   async findOneByEmail(email: string): Promise<CreatorProfileInterface | null> {
@@ -22,14 +22,14 @@ export class CreatorsService {
       return null;
     }
     const userData = await this.creatorRepository.findOneByEmail(email);
-    return camelCaseKeys(userData) as CreatorProfileInterface;
+    return snakeToCamel(userData) as CreatorProfileInterface;
   }
 
   async create(
     user: CreatorProfileInterface,
   ): Promise<CreatorProfileInterface> {
     const userData = await this.creatorRepository.create(user);
-    return camelCaseKeys(userData) as CreatorProfileInterface;
+    return snakeToCamel(userData) as CreatorProfileInterface;
   }
 
   async update(
@@ -41,7 +41,7 @@ export class CreatorsService {
       throw new NotFoundException('Creator not found');
     }
     const updatedUser = await this.creatorRepository.update(id, userData);
-    return camelCaseKeys(updatedUser) as CreatorProfileInterface;
+    return snakeToCamel(updatedUser) as CreatorProfileInterface;
   }
 
   async delete(id: string): Promise<void> {
