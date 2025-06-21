@@ -13,7 +13,7 @@ import { ClipsModule } from './clips/clips.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: `./.env.${process.env.NODE_ENV}`,
+      envFilePath: `./.env`,
     }),
     CreatorsModule,
     ClippersModule,
