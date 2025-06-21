@@ -15,18 +15,16 @@ export class ClipValidationPipe implements PipeTransform {
     const clipPipe = new ParseFilePipe({
       validators: [
         new FileTypeValidator({
-            fileType: /(mp4|webm|ogg|quicktime|x-msvideo|x-matroska|mpeg)/,
-          }),
-        new MaxFileSizeValidator({ maxSize: 104857600 }), // 100MB
+          fileType: /(mp4|webm|ogg|quicktime|x-msvideo|x-matroska|mpeg)/,
+        }),
+        new MaxFileSizeValidator({ maxSize: 52428800 }), // 50MB
       ],
     });
 
     try {
       return await clipPipe.transform(file);
     } catch (error) {
-      throw new BadRequestException(
-        `Clip validation failed: ${error.message}`,
-      );
+      throw new BadRequestException(`Clip validation failed: ${error.message}`);
     }
   }
 }
