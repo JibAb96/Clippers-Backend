@@ -7,8 +7,6 @@ import {
 } from '@nestjs/common';
 import { ClippersService } from './clippers.service';
 import { PortfolioService } from './portforlio.service';
-import { GuidelinesService } from './guidelines.service';
-import { GuidelinesInterface } from './interfaces/guidlines.interface';
 import { PortfolioResponse } from './interfaces/portfolio-response.interface';
 import { v4 as uuidv4 } from 'uuid';
 import { ClipperInterface } from '../interfaces/clipper-profile.interface';
@@ -20,7 +18,7 @@ export class ClippersFacadeService {
   constructor(
     private readonly clippersService: ClippersService,
     private readonly portfolioService: PortfolioService,
-    private readonly guidelinesService: GuidelinesService,
+
   ) {}
 
   // Clippers
@@ -54,8 +52,8 @@ export class ClippersFacadeService {
     let message: string = '';
 
     try {
-      // Set the brandProfilePic column to null
-      await this.clippersService.update(clipperId, { brandProfilePic: null });
+      // Set the brandProfilePicture column to null
+      await this.clippersService.update(clipperId, { brandProfilePicture: null });
 
       try {
         // Delete the image from the bucket
@@ -137,26 +135,7 @@ export class ClippersFacadeService {
     }
   }
 
-  // Guidelines
-  async getGuidelines(userId: string) {
-    return this.guidelinesService.findAllByClipperId(userId);
-  }
-
-  async createGuidelines(body: GuidelinesInterface) {
-    return this.guidelinesService.create(body);
-  }
-
-  async updateGuidelines(id: string, body: GuidelinesInterface) {
-    const findGuideline = await this.guidelinesService.findOneById(id);
-    if (!findGuideline) {
-      throw new NotFoundException('Guideline not found');
-    }
-    return this.guidelinesService.update(id, body);
-  }
-
-  async deleteGuidelines(id: string) {
-    return this.guidelinesService.delete(id);
-  }
+ 
 
   private generateUUID() {
     return uuidv4();
