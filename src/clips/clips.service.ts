@@ -57,6 +57,7 @@ export class ClipsService {
           submitClipDto.description,
           submitClipDto.clipperId,
           thumbnailUrl,
+          submitClipDto.title,
         );
       } catch (error) {
         this.logger.error(
