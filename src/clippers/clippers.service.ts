@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { ClippersRepository } from './clippers.repository';
 import { ClipperInterface } from '../interfaces/clipper-profile.interface';
-import camelCaseKeys from 'camelcase-keys';
+import { snakeToCamel } from "../utility/camelToSnake";
 import { UploadFileResponse } from '../interfaces/upload-response.interface';
 
 @Injectable()
@@ -14,8 +14,8 @@ export class ClippersService {
     }
     // Assuming rawUserData is an array of objects that need their keys camelCased
     const userData = Array.isArray(rawUserData)
-      ? rawUserData.map((user) => camelCaseKeys(user as any))
-      : camelCaseKeys(rawUserData as any); // Fallback if it's a single object, though findAll implies array
+      ? rawUserData.map((user) => snakeToCamel(user as any))
+      : snakeToCamel(rawUserData as any); // Fallback if it's a single object, though findAll implies array
 
     return userData as unknown as ClipperInterface[];
   }
@@ -24,7 +24,7 @@ export class ClippersService {
       return null;
     }
     const userData = await this.clippersRepository.findOneById(id);
-    return camelCaseKeys(userData) as ClipperInterface;
+    return snakeToCamel(userData) as ClipperInterface;
   }
 
   async findOneByEmail(email: string): Promise<ClipperInterface | null> {
@@ -32,13 +32,13 @@ export class ClippersService {
       return null;
     }
     const userData = await this.clippersRepository.findOneByEmail(email);
-    return camelCaseKeys(userData) as ClipperInterface;
+    return snakeToCamel(userData) as ClipperInterface;
   }
 
   async create(user: ClipperInterface): Promise<ClipperInterface> {
     const userData = await this.clippersRepository.create(user);
 
-    return camelCaseKeys(userData) as ClipperInterface;
+    return snakeToCamel(userData) as ClipperInterface;
   }
 
   async update(
@@ -50,7 +50,7 @@ export class ClippersService {
       throw new NotFoundException('Creator not found');
     }
     const updatedUser = await this.clippersRepository.update(id, userData);
-    return camelCaseKeys(updatedUser) as ClipperInterface;
+    return snakeToCamel(updatedUser) as ClipperInterface;
   }
 
   async delete(id: string): Promise<void> {
