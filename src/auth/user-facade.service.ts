@@ -193,12 +193,16 @@ export class UserFacadeService {
     let clipperProfile: ClipperInterface | null = null;
     try {
       if (authData.id) {
-        clipperProfile = await this.clippersService.findOneById(authData.id);
-        if (!clipperProfile) {
-          throw new NotFoundException(
-            'Authentication succeeded but profile not found',
+        try {
+          clipperProfile = await this.clippersService.findOneById(authData.id);
+        } catch (error) {
+          this.logger.error(
+            `User logged in but cannot be found in clipper table: ${error.message}`,
+            error.stack,
           );
+          throw new BadRequestException('User logged as with incorrect role (as clipper)'); 
         }
+        
       }
       return {
         user: clipperProfile,
@@ -218,10 +222,17 @@ export class UserFacadeService {
     }
   }
 
-  async getUserProfile(
+  async getCreatorProfile(
     userId: string,
   ): Promise<CreatorProfileInterface | null> {
     const profile = await this.creatorsService.findOneById(userId);
+    return profile;
+  }
+
+  async getClipperProfile(
+    userId: string,
+  ): Promise<ClipperInterface | null> {
+    const profile = await this.clippersService.findOneById(userId);
     return profile;
   }
 
@@ -357,7 +368,6 @@ export class UserFacadeService {
   async deleteProfileImage(
     userId: string,
   ): Promise<{ success: boolean; message: string }> {
-
     // Get the current profile to restore if needed
     const profile = await this.creatorsService.findOneById(userId);
     const previousProfilePic = profile?.brandProfilePicture ?? null;
@@ -403,6 +413,26 @@ export class UserFacadeService {
     }
   }
 
+  async changePassword(
+    newPassword: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      await this.authService.changePassword(newPassword);
+      return {
+        success: true,
+        message: 'Password changed successfully',
+      };
+    } catch (error) {
+      this.logger.error(
+        `Changing password failed in facade: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException(
+        'There was an internal server error changing the password',
+      );
+    }
+  }
 
   private async authenticateUser(credentials: SignInUserDto) {
     try {
