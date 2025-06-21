@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AuthRepository } from './auth.repository';
 import { AuthDto } from './dtos/auth.dto';
 import { AuthResponse } from './interfaces/auth-response.interface';
@@ -16,7 +13,7 @@ export class AuthService {
         authDto.email,
         authDto.password,
       );
-      return response
+      return response;
     } catch (error) {
       this.logger.error(`Registration failed: ${error.message}`, error.stack);
       throw error;
@@ -30,7 +27,7 @@ export class AuthService {
         authDto.password,
       );
 
-      return response
+      return response;
     } catch (error) {
       this.logger.error(`Login failed: ${error.message}`, error.stack);
       throw error;
@@ -38,5 +35,17 @@ export class AuthService {
   }
   async deleteUser(id: string): Promise<void> {
     await this.authRepository.deleteUser(id);
+  }
+
+  async changePassword(password: string): Promise<void> {
+    try {
+      await this.authRepository.changePassword(password);
+    } catch (error) {
+      this.logger.error(
+        `Changing password failed in service: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 }
