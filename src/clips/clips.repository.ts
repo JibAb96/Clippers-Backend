@@ -19,6 +19,7 @@ export class ClipsRepository {
     description: string,
     clipperId: string,
     thumbnailUrl?: string,
+    title?: string,
   ): Promise<ClipSubmission> {
     const { data, error } = await this.supabaseService.client
       .from('clip_submissions')
@@ -28,6 +29,7 @@ export class ClipsRepository {
         clip_url: clipUrl,
         thumbnail_url: thumbnailUrl,
         description,
+        title,
         status: ClipStatus.PENDING,
       })
       .select('*')
@@ -145,7 +147,6 @@ export class ClipsRepository {
   async deleteClipFromStorage(clipUrl: string): Promise<void> {
     try {
       // Extract bucket and path information from the URL
-      // Example URL format: https://xxx.supabase.co/storage/v1/object/public/bucket-name/path/to/file.mp4
       const urlParts = clipUrl.split('/object/public/');
       if (urlParts.length < 2) {
         throw new Error(`Invalid storage URL format: ${clipUrl}`);
@@ -174,16 +175,14 @@ export class ClipsRepository {
   }
 
   /**
-   * Rollback a clip submission by deleting the uploaded file from storage
-   * Use this when the database insertion fails but the file was already uploaded
+   Rollback a clip submission by deleting the uploaded file from storage
    */
   async rollbackClipSubmission(clipUrl: string): Promise<void> {
     try {
       await this.deleteClipFromStorage(clipUrl);
     } catch (error) {
       console.error(`Rollback operation failed: ${error.message}`);
-      // We don't rethrow here as this is already a recovery operation
-      // Just log the error, so the main error (DB insertion failure) is still propagated
+     
     }
   }
 
@@ -196,6 +195,7 @@ export class ClipsRepository {
       clipUrl: data.clip_url,
       thumbnailUrl: data.thumbnail_url,
       status: data.status,
+      title: data.title,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
