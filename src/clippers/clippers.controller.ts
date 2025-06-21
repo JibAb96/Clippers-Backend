@@ -16,8 +16,6 @@ import {
 import { ClippersFacadeService } from './clippers-facade.service';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { SupabaseAuthGuard } from '../guards/supabase-auth.guard';
-import { CreateGuidelineDto } from './dtos/guidelines.dto';
-import { GuidelinesInterface } from './interfaces/guidlines.interface';
 import { CurrentUser } from "../decorators/current-user.decorator";
 import { SupabaseUser } from "../interfaces/auth-request.interface";
 import { ApiResponse } from "../interfaces/api.interface";
@@ -153,60 +151,6 @@ export class ClippersController {
       status: 'success',
       data: response,
       message: 'Portfolio image deleted successfully',
-    };
-  }
-
-  @Get('/guidelines/:userId')
-  async getGuidelines(
-    @Param('userId') userId: string,
-  ): Promise<ApiResponse<string[] | null>> {
-    const response = await this.clippersFacade.getGuidelines(userId);
-    return {
-      status: 'success',
-      data: response,
-      message: 'Guidelines successfully retrieved',
-    };
-  }
-
-  @UseGuards(SupabaseAuthGuard)
-  @Post('submit-guidelines')
-  async createGuidelines(
-    @Body() body: CreateGuidelineDto,
-    @CurrentUser() currentUser: SupabaseUser,
-  ): Promise<ApiResponse<GuidelinesInterface>> {
-    const response = await this.clippersFacade.createGuidelines({
-      ...body,
-      clipperId: currentUser.id,
-    });
-    return {
-      status: 'success',
-      data: response,
-      message: 'Guidelines successfully created',
-    };
-  }
-
-  @UseGuards(SupabaseAuthGuard)
-  @Patch('guidelines/:id')
-  async updateGuidelines(
-    @Param('id') id: string,
-    @Body() body: GuidelinesInterface,
-  ) {
-    const response = await this.clippersFacade.updateGuidelines(id, body);
-    return {
-      status: 'success',
-      data: response,
-      message: 'Guidelines successfully updated',
-    };
-  }
-
-  @UseGuards(SupabaseAuthGuard)
-  @Delete('guidelines/:id')
-  async deleteGuidelines(@Param('id') id: string) {
-    const response = await this.clippersFacade.deleteGuidelines(id);
-    return {
-      status: 'success',
-      data: response,
-      message: 'Guidelines successfully deleted',
     };
   }
 }
