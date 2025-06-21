@@ -20,7 +20,7 @@ import { ClipSubmission } from '../interfaces/clip-submission.interface';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { SupabaseUser } from '../interfaces/auth-request.interface';
 import { ApiResponse } from '../interfaces/api.interface';
-import { ClipFileDto } from 'src/dtos/submit-clip-files.dto';
+import { ClipFileDto } from '../dtos/submit-clip-files.dto';
 import { ThumbnailValidationPipe } from './pipes/thumbnail-validation.pipe';
 import { ClipValidationPipe } from "./pipes/clip-validation.pipe"
 
@@ -35,11 +35,11 @@ export class ClipsController {
   @UseInterceptors(
     FileFieldsInterceptor([
       {
-        name: 'clip',
+        name: 'videoFile',
         maxCount: 1,
       },
       {
-        name: 'thumbnail',
+        name: 'thumbnailFile',
         maxCount: 1,
       },
     ]),
@@ -53,10 +53,10 @@ export class ClipsController {
     const clipValidationPipe = new ClipValidationPipe();
     const thumbnailValidationPipe = new ThumbnailValidationPipe();
     const thumbnailFile = await thumbnailValidationPipe.transform(
-      files.thumbnail[0],
+      files.thumbnailFile[0],
     );
-    const clipFile = await clipValidationPipe.transform(files.clip[0])
-    const result = await this.clipsService.submitClip(
+    const clipFile = await clipValidationPipe.transform(files.videoFile[0])
+    const response = await this.clipsService.submitClip(
       clipFile,
       thumbnailFile,
       submitClipDto,
@@ -65,7 +65,7 @@ export class ClipsController {
 
     return {
       status: 'success',
-      data: result,
+      data: response,
       message: 'Clip submitted successfully',
     };
   }
@@ -75,13 +75,13 @@ export class ClipsController {
     @Body() updateClipStatusDto: UpdateClipStatusDto,
     @CurrentUser() user: SupabaseUser,
   ): Promise<ApiResponse<ClipSubmission>> {
-    const result = await this.clipsService.updateClipStatus(
+    const response = await this.clipsService.updateClipStatus(
       updateClipStatusDto,
       user.id,
     );
     return {
       status: 'success',
-      data: result,
+      data: response,
       message: 'Clip status updated successfully',
     };
   }
@@ -90,12 +90,12 @@ export class ClipsController {
   async getClipSubmissionsByCreatorId(
     @CurrentUser() user: SupabaseUser,
   ): Promise<ApiResponse<ClipSubmission[]>> {
-    const result = await this.clipsService.getClipSubmissionsByCreatorId(
+    const response = await this.clipsService.getClipSubmissionsByCreatorId(
       user.id,
     );
     return {
       status: 'success',
-      data: result,
+      data: response,
       message: 'Creator clip submissions fetched successfully',
     };
   }
@@ -104,12 +104,12 @@ export class ClipsController {
   async getClipSubmissionsByClipperId(
     @CurrentUser() user: SupabaseUser,
   ): Promise<ApiResponse<ClipSubmission[]>> {
-    const result = await this.clipsService.getClipSubmissionsByClipperId(
+    const response = await this.clipsService.getClipSubmissionsByClipperId(
       user.id,
     );
     return {
       status: 'success',
-      data: result,
+      data: response,
       message: 'Clipper submissions fetched successfully',
     };
   }
@@ -119,10 +119,10 @@ export class ClipsController {
     @Param('id') id: string,
     @CurrentUser() user: SupabaseUser,
   ): Promise<ApiResponse<ClipSubmission>> {
-    const result = await this.clipsService.getClipSubmissionById(id, user.id);
+    const response = await this.clipsService.getClipSubmissionById(id, user.id);
     return {
       status: 'success',
-      data: result,
+      data: response,
       message: 'Clip submission fetched successfully',
     };
   }
