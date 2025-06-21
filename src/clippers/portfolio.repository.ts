@@ -5,9 +5,9 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { PortfolioInterface } from './interfaces/portfolio.interface';
-import { camelToSnake } from 'src/utility/camelToSnake';
+import { camelToSnake } from '../utility/camelToSnake';
 import { PortfolioResponse } from './interfaces/portfolio-response.interface';
-import { UploadFileResponse } from "src/interfaces/upload-response.interface";
+import { UploadFileResponse } from "../interfaces/upload-response.interface";
 @Injectable()
 export class PortfolioRepository {
   constructor(private supabaseService: SupabaseService) {}
