@@ -4,8 +4,8 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
-import { SupabaseService } from 'src/supabase/supabase.service';
-import { SupabaseAuthClientService } from 'src/supabase/supabase-auth-client.service';
+import { SupabaseService } from '../supabase/supabase.service';
+import { SupabaseAuthClientService } from '../supabase/supabase-auth-client.service';
 import { AuthResponse } from './interfaces/auth-response.interface';
 
 @Injectable()
@@ -85,6 +85,22 @@ export class AuthRepository {
       this.logger.error(`Deleting user failed: ${error.message}`, error.stack);
       throw new InternalServerErrorException(
         'There was an internal server error while deleting user',
+      );
+    }
+  }
+
+  async changePassword(password: string): Promise<void> {
+    const { error } =
+      await this.supabaseAuthClientService.client.auth.updateUser({
+        password: password,
+      });
+    if (error) {
+      this.logger.error(
+        `Changing password failed: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'There was an internal server error while changing password',
       );
     }
   }
