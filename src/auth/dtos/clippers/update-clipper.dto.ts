@@ -67,10 +67,4 @@ export class UpdateClipperDto {
   @Max(500000000)
   pricePerPost?: number;
 
-  @IsString()
-  @Matches(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/, {
-    message:
-      'Password must contain at least one letter, one number, and be at least 8 characters long',
-  })
-  password?: string;
 }
