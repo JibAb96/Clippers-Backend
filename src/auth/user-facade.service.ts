@@ -22,6 +22,19 @@ import { ClippersService } from '../clippers/clippers.service';
 import { RegisterClipperDto } from '../auth/dtos/clippers/register-clipper.dto';
 import { ClipperInterface } from '../interfaces/clipper-profile.interface';
 import { UpdateClipperDto } from './dtos/clippers/update-clipper.dto';
+import { GoogleOnboardingService } from './google-onboarding.service';
+import { GoogleAuthResponse } from './dtos/google-oauth.dto';
+import { GoogleOAuthService } from './google-oauth.service';
+import {
+  OnboardingRoleSelectionDto,
+  OnboardingStep1Dto,
+  OnboardingStep2Dto,
+  OnboardingStep3Dto,
+  OnboardingStep4ClipperDto,
+  CompleteOnboardingDto,
+  OnboardingStepResponse,
+} from './dtos/google-onboarding.dto';
+
 @Injectable()
 export class UserFacadeService {
   private readonly logger = new Logger(UserFacadeService.name);
@@ -30,8 +43,131 @@ export class UserFacadeService {
     private readonly authService: AuthService,
     private readonly creatorsService: CreatorsService,
     private readonly clippersService: ClippersService,
+    private readonly googleOnboardingService: GoogleOnboardingService,
+    private readonly googleOAuthService: GoogleOAuthService,
   ) {}
 
+  // Google OAuth Methods
+  async getGoogleAuthUrl(): Promise<string> {
+    return this.googleOAuthService.generateAuthUrl();
+  }
+
+  async handleGoogleCallback(code: string): Promise<GoogleAuthResponse> {
+    try {
+      const tokens = await this.googleOAuthService.getTokenFromCode(code);
+      return await this.googleAuth(tokens.idToken);
+    } catch (error) {
+      this.logger.error(
+        `Google callback failed: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  async initiateGoogleOnboarding(userData: {
+    email: string;
+    name: string;
+    picture: string;
+    role: 'creator' | 'clipper';
+  }): Promise<string> {
+    return this.googleOnboardingService.generateOnboardingToken(userData);
+  }
+
+  async getOnboardingStatus(token: string): Promise<{
+    currentStep: number;
+    totalSteps: number;
+    role: string;
+  }> {
+    return this.googleOnboardingService.getOnboardingStatus(token);
+  }
+
+  async googleAuth(idToken: string): Promise<GoogleAuthResponse> {
+    try {
+      const googleUser = await this.authService.verifyGoogleToken(idToken);
+
+      if (!googleUser.emailVerified) {
+        throw new BadRequestException('Google email is not verified');
+      }
+
+      const existingUser = await this.authService.checkUserExists(
+        googleUser.email,
+      );
+
+      if (existingUser) {
+        const userProfile = await this.authService.getUserProfile(
+          existingUser.id,
+        );
+        const sessionData =
+          await this.authService.createSupabaseSession(idToken);
+
+        return {
+          requiresOnboarding: false,
+          user: {
+            id: existingUser.id,
+            email: existingUser.email!,
+            role: userProfile.role,
+            profile: userProfile.profile,
+          },
+          token: sessionData.session?.access_token,
+          refreshToken: sessionData.session?.refresh_token,
+        };
+      }
+
+      return {
+        requiresOnboarding: true,
+        onboardingToken: this.googleOnboardingService.generateOnboardingToken({
+          email: googleUser.email,
+          name: googleUser.name,
+          picture: googleUser.picture,
+          role: 'creator', // Default role, will be updated when user selects
+        }),
+      };
+    } catch (error) {
+      this.logger.error(
+        `Google authentication failed: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  // Google Onboarding Methods
+  async processRoleSelection(
+    dto: OnboardingRoleSelectionDto,
+  ): Promise<OnboardingStepResponse> {
+    return this.googleOnboardingService.processRoleSelection(dto);
+  }
+
+  async processOnboardingStep1(
+    dto: OnboardingStep1Dto,
+  ): Promise<OnboardingStepResponse> {
+    return this.googleOnboardingService.processStep1(dto);
+  }
+
+  async processOnboardingStep2(
+    dto: OnboardingStep2Dto,
+  ): Promise<OnboardingStepResponse> {
+    return this.googleOnboardingService.processStep2(dto);
+  }
+
+  async processOnboardingStep3(
+    dto: OnboardingStep3Dto,
+  ): Promise<OnboardingStepResponse> {
+    return this.googleOnboardingService.processStep3(dto);
+  }
+
+  async processOnboardingStep4Clipper(
+    dto: OnboardingStep4ClipperDto,
+  ): Promise<OnboardingStepResponse> {
+    return this.googleOnboardingService.processStep4Clipper(dto);
+  }
+
+  async completeOnboarding(dto: CompleteOnboardingDto): Promise<UserResponse> {
+    return this.googleOnboardingService.completeOnboarding(dto);
+  }
+
+  // Regular Registration Methods
   async registerCreator(form: RegisterCreatorDto): Promise<UserResponse> {
     let authData: AuthResponse | null = null;
     let profileCreated = false;
@@ -200,9 +336,10 @@ export class UserFacadeService {
             `User logged in but cannot be found in clipper table: ${error.message}`,
             error.stack,
           );
-          throw new BadRequestException('User logged as with incorrect role (as clipper)'); 
+          throw new BadRequestException(
+            'User logged as with incorrect role (as clipper)',
+          );
         }
-        
       }
       return {
         user: clipperProfile,
@@ -229,9 +366,7 @@ export class UserFacadeService {
     return profile;
   }
 
-  async getClipperProfile(
-    userId: string,
-  ): Promise<ClipperInterface | null> {
+  async getClipperProfile(userId: string): Promise<ClipperInterface | null> {
     const profile = await this.clippersService.findOneById(userId);
     return profile;
   }
