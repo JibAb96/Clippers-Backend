@@ -17,7 +17,7 @@ import {
 import { SubmitClipDto } from '../dtos/submit-clip.dto';
 import { UpdateClipStatusDto } from '../dtos/update-clip-status.dto';
 import { ClipSubmission } from '../interfaces/clip-submission.interface';
-import { CurrentUser } from '../decorators/current-user.decorator';
+import { CurrentUser, AuthToken } from '../decorators/current-user.decorator';
 import { SupabaseUser } from '../interfaces/auth-request.interface';
 import { ApiResponse } from '../interfaces/api.interface';
 import { ClipFileDto } from '../dtos/submit-clip-files.dto';
@@ -49,6 +49,7 @@ export class ClipsController {
     files: ClipFileDto,
     @Body() submitClipDto: SubmitClipDto,
     @CurrentUser() user: SupabaseUser,
+    @AuthToken() token: string,
   ): Promise<ApiResponse<ClipSubmission>> {
     const clipValidationPipe = new ClipValidationPipe();
     const thumbnailValidationPipe = new ThumbnailValidationPipe();
@@ -61,6 +62,7 @@ export class ClipsController {
       thumbnailFile,
       submitClipDto,
       user.id,
+      token,
     );
 
     return {
@@ -74,10 +76,12 @@ export class ClipsController {
   async updateClipStatus(
     @Body() updateClipStatusDto: UpdateClipStatusDto,
     @CurrentUser() user: SupabaseUser,
+    @AuthToken() token: string,
   ): Promise<ApiResponse<ClipSubmission>> {
     const response = await this.clipsService.updateClipStatus(
       updateClipStatusDto,
       user.id,
+      token,
     );
     return {
       status: 'success',
@@ -89,9 +93,11 @@ export class ClipsController {
   @Get('get-by-creatorId')
   async getClipSubmissionsByCreatorId(
     @CurrentUser() user: SupabaseUser,
+    @AuthToken() token: string,
   ): Promise<ApiResponse<ClipSubmission[]>> {
     const response = await this.clipsService.getClipSubmissionsByCreatorId(
       user.id,
+      token,
     );
     return {
       status: 'success',
@@ -103,9 +109,11 @@ export class ClipsController {
   @Get('get-by-clipperId')
   async getClipSubmissionsByClipperId(
     @CurrentUser() user: SupabaseUser,
+    @AuthToken() token: string,
   ): Promise<ApiResponse<ClipSubmission[]>> {
     const response = await this.clipsService.getClipSubmissionsByClipperId(
       user.id,
+      token,
     );
     return {
       status: 'success',
@@ -118,8 +126,9 @@ export class ClipsController {
   async getClipSubmissionById(
     @Param('id') id: string,
     @CurrentUser() user: SupabaseUser,
+    @AuthToken() token: string,
   ): Promise<ApiResponse<ClipSubmission>> {
-    const response = await this.clipsService.getClipSubmissionById(id, user.id);
+    const response = await this.clipsService.getClipSubmissionById(id, user.id, token);
     return {
       status: 'success',
       data: response,
