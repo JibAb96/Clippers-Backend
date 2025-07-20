@@ -43,12 +43,42 @@ export class SupabaseService implements OnModuleInit {
     return this.supabaseClient;
   }
 
+  /**
+   * Creates a Supabase client with user authentication context for RLS policies
+   * @param userToken The JWT token of the authenticated user
+   * @returns A Supabase client with user context
+   */
+  async getUserAuthenticatedClient(userToken: string): Promise<SupabaseClient> {
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
+    const supabaseKey = this.configService.get<string>('SUPABASE_KEY');
+    
+    const userClient = createClient(supabaseUrl || '', supabaseKey || '', {
+      auth: {
+        persistSession: false,
+      },
+    });
+    
+    // Set the session with the user's JWT token for RLS policies
+    await userClient.auth.setSession({
+      access_token: userToken,
+      refresh_token: '', // Not needed for our use case
+    });
+    
+    return userClient;
+  }
+
   async uploadFile(
     file: Express.Multer.File,
     bucket: string,
     path: string,
+    userToken?: string,
   ): Promise<string> {
-      const { error } = await this.supabaseClient.storage
+      // Use user-authenticated client if token is provided, otherwise use service client
+      const client = userToken 
+        ? await this.getUserAuthenticatedClient(userToken)
+        : this.supabaseClient;
+
+      const { error } = await client.storage
         .from(bucket)
         .upload(path, file.buffer, {
           contentType: file.mimetype,
@@ -68,14 +98,19 @@ export class SupabaseService implements OnModuleInit {
 
       const {
         data: { publicUrl },
-      } = this.supabaseClient.storage.from(bucket).getPublicUrl(path);
+      } = client.storage.from(bucket).getPublicUrl(path);
       return publicUrl;
     
   }
 
-  async deleteFile(bucket: string, path: string): Promise<void> {
+  async deleteFile(bucket: string, path: string, userToken?: string): Promise<void> {
     try {
-      const { data, error } = await this.supabaseClient.storage
+      // Use user-authenticated client if token is provided, otherwise use service client
+      const client = userToken 
+        ? await this.getUserAuthenticatedClient(userToken)
+        : this.supabaseClient;
+
+      const { data, error } = await client.storage
         .from(bucket)
         .remove([path]);
 
