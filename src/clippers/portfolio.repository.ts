@@ -62,18 +62,23 @@ export class PortfolioRepository {
     }));
   }
 
-  async create(portfolioData: PortfolioInterface): Promise<PortfolioResponse> {
+  async create(portfolioData: PortfolioInterface, userToken?: string): Promise<PortfolioResponse> {
     const snakeCaseData = camelToSnake(portfolioData);
 
-    const { data, error } = await this.supabaseService.client
+    // Use user-authenticated client if token is provided, otherwise use service client
+    const client = userToken 
+      ? await this.supabaseService.getUserAuthenticatedClient(userToken)
+      : this.supabaseService.client;
+
+    const { data, error } = await client
       .from('portfolio_images')
       .insert(snakeCaseData)
       .select()
       .single();
     if (error) {
-      this.logger.error(`Unable to create user: ${error.message}`, error.stack);
+      this.logger.error(`Unable to create portfolio image: ${error.message}`, error.stack);
       throw new InternalServerErrorException(
-        'There was an internal server error creating user',
+        'There was an internal server error creating portfolio image',
       );
     }
     return {
@@ -99,12 +104,14 @@ export class PortfolioRepository {
     file: Express.Multer.File,
     bucket: string,
     path: string,
+    userToken?: string,
   ): Promise<UploadFileResponse> {
     try {
       const publicUrl = await this.supabaseService.uploadFile(
         file,
         bucket,
         path,
+        userToken,
       );
       return { url: publicUrl, path: path };
     } catch (error) {
