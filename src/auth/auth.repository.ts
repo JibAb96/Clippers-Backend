@@ -77,6 +77,23 @@ export class AuthRepository {
       refreshToken: data.session.refresh_token,
     };
   }
+  async findUserExistsByEmail(email: string): Promise<any> {
+    const { data, error } =
+      await this.supabaseAuthClientService.client.auth.admin.listUsers();
+    if (error) {
+      this.logger.error(
+        `Error finding user by email: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'There was an internal server error while finding user by email',
+      );
+    }
+    
+    // Return the actual user object instead of just a boolean
+    const user = data.users.find((user) => user.email === email);
+    return user || null;
+  }
 
   async deleteUser(id: string): Promise<void> {
     const { error } =
