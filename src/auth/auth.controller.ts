@@ -20,17 +20,23 @@ import { UserFacadeService } from './user-facade.service';
 import { UserResponse } from '../interfaces/user-auth-response.interface';
 import { ApiResponse } from '../interfaces/api.interface';
 import { CreatorProfileInterface } from 'src/interfaces/creator-profle.interface';
-import { CurrentUser } from '../decorators/current-user.decorator';
+import { CurrentUser, AuthToken } from '../decorators/current-user.decorator';
 import { SupabaseUser } from '../interfaces/auth-request.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RegisterClipperDto } from './dtos/clippers/register-clipper.dto';
 import { UpdateClipperDto } from './dtos/clippers/update-clipper.dto';
 import { ClipperInterface } from '../interfaces/clipper-profile.interface';
 import { ChangePasswordDto } from './dtos/change-password.dto';
+import { GoogleAuthDto, GoogleCallbackDto, InitiateOnboardingDto } from './dtos/google-oauth.dto';
+import {
+  CompleteOnboardingDto,
+} from './dtos/google-onboarding.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly userFacade: UserFacadeService) {}
+  constructor(
+    private readonly userFacade: UserFacadeService,
+  ) {}
 
   @Post('/register/creator')
   async registerCreator(
@@ -97,11 +103,13 @@ export class AuthController {
     )
     image: Express.Multer.File,
     @CurrentUser() currentUser: SupabaseUser,
+    @AuthToken() token: string,
   ): Promise<ApiResponse<string | null>> {
     console.log('image:', image);
     const response = await this.userFacade.uploadCreatorImage(
       image,
       currentUser.id,
+      token,
     );
     return {
       status: 'success',
@@ -128,10 +136,12 @@ export class AuthController {
     )
     image: Express.Multer.File,
     @CurrentUser() currentUser: SupabaseUser,
+    @AuthToken() token: string,
   ): Promise<ApiResponse<string | null>> {
     const response = await this.userFacade.uploadClipperImage(
       image,
       currentUser.id,
+      token,
     );
     return {
       status: 'success',
@@ -239,6 +249,80 @@ export class AuthController {
       status: 'success',
       data: response,
       message: response.message,
+    };
+  }
+
+  // Google OAuth endpoints
+  @Get('/google/url')
+  async getGoogleAuthUrl(): Promise<ApiResponse<{ authUrl: string }>> {
+    const authUrl = await this.userFacade.getGoogleAuthUrl();
+    return {
+      status: 'success',
+      data: { authUrl },
+      message: 'Google auth URL generated successfully',
+    };
+  }
+
+  @Post('/google/callback')
+  async googleCallback(
+    @Body() body: GoogleCallbackDto,
+  ): Promise<ApiResponse<any>> {
+    const authResponse = await this.userFacade.handleGoogleCallback(body.code);
+    return {
+      status: 'success',
+      data: authResponse,
+      message: 'Google authentication processed successfully',
+    };
+  }
+
+  @Post('/google/auth')
+  async googleAuth(@Body() body: GoogleAuthDto): Promise<ApiResponse<any>> {
+    const authResponse = await this.userFacade.googleAuth(body.idToken);
+    return {
+      status: 'success',
+      data: authResponse,
+      message: 'Google authentication successful',
+    };
+  }
+
+  @Post('/google/initiate-onboarding')
+  async initiateOnboarding(
+    @Body() body: InitiateOnboardingDto,
+  ): Promise<ApiResponse<{ onboardingToken: string }>> {
+    const onboardingToken = await this.userFacade.initiateGoogleOnboarding({
+      email: body.email,
+      name: body.name,
+      picture: body.picture,
+      role: body.role,
+    });
+    return {
+      status: 'success',
+      data: { onboardingToken },
+      message: 'Onboarding initiated successfully',
+    };
+  }
+
+  @Post('/onboarding/complete')
+  async completeOnboarding(
+    @Body() body: CompleteOnboardingDto,
+  ): Promise<ApiResponse<UserResponse>> {
+    const response = await this.userFacade.completeOnboarding(body);
+    return {
+      status: 'success',
+      data: response,
+      message: 'Onboarding completed successfully',
+    };
+  }
+
+  @Get('/onboarding/status/:token')
+  async getOnboardingStatus(
+    @Param('token') token: string,
+  ): Promise<ApiResponse<any>> {
+    const status = await this.userFacade.getOnboardingStatus(token);
+    return {
+      status: 'success',
+      data: status,
+      message: 'Onboarding status retrieved successfully',
     };
   }
 }
