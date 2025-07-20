@@ -64,11 +64,13 @@ export class ClippersService {
   async uploadProfilePicture(
     image: Express.Multer.File,
     clipperId: string,
+    userToken?: string,
   ): Promise<UploadFileResponse> {
     const file = await this.clippersRepository.uploadedFile(
       image,
       'clipper-profile-pictures',
       `${clipperId}/profilepic`,
+      userToken,
     );
     return file;
   }
