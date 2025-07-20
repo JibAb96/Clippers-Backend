@@ -20,13 +20,16 @@ export class CreatorsRepository {
       .eq('id', id)
       .single();
     if (error) {
+      // Handle "no rows found" case - return null instead of throwing
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+
       this.logger.error(
         `Unable to find user by id: ${error.message}`,
         error.stack,
       );
-      throw new InternalServerErrorException(
-        'Unable to find user',
-      );
+      throw new InternalServerErrorException('Unable to find user');
     }
     return data;
   }
@@ -38,6 +41,11 @@ export class CreatorsRepository {
       .eq('email', email)
       .single();
     if (error) {
+      // Handle "no rows found" case - return null instead of throwing
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      
       this.logger.error(
         `Unable to find user by email: ${error.message}`,
         error.stack,
@@ -100,17 +108,19 @@ export class CreatorsRepository {
       );
     }
   }
-  
+
   async uploadedFile(
     file: Express.Multer.File,
     bucket: string,
     path: string,
+    userToken?: string,
   ): Promise<UploadFileResponse> {
     try {
       const publicUrl = await this.supabaseService.uploadFile(
         file,
         bucket,
         path,
+        userToken,
       );
       return { url: publicUrl, path: path };
     } catch (error) {
