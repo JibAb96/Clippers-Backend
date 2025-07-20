@@ -16,11 +16,11 @@ import {
 import { ClippersFacadeService } from './clippers-facade.service';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { SupabaseAuthGuard } from '../guards/supabase-auth.guard';
-import { CurrentUser } from "../decorators/current-user.decorator";
-import { SupabaseUser } from "../interfaces/auth-request.interface";
-import { ApiResponse } from "../interfaces/api.interface";
-import { PortfolioResponse } from "./interfaces/portfolio-response.interface";
-import { ClipperInterface } from "../interfaces/clipper-profile.interface";
+import { CurrentUser, AuthToken } from '../decorators/current-user.decorator';
+import { SupabaseUser } from '../interfaces/auth-request.interface';
+import { ApiResponse } from '../interfaces/api.interface';
+import { PortfolioResponse } from './interfaces/portfolio-response.interface';
+import { ClipperInterface } from '../interfaces/clipper-profile.interface';
 
 @Controller('clippers')
 export class ClippersController {
@@ -64,10 +64,12 @@ export class ClippersController {
     )
     image: Express.Multer.File,
     @CurrentUser() currentUser: SupabaseUser,
+    @AuthToken() token: string,
   ): Promise<ApiResponse<ClipperInterface>> {
     const response = await this.clippersFacade.uploadClipperImage(
       image,
       currentUser.id,
+      token,
     );
     return {
       status: 'success',
@@ -90,7 +92,7 @@ export class ClippersController {
       message: response.message,
     };
   }
-  
+
   @Get('/portfolio-images/:userId')
   async getPortfolioImages(
     @Param('userId') userId: string,
@@ -109,6 +111,7 @@ export class ClippersController {
   async uploadPortfolioImages(
     @UploadedFiles() images: Express.Multer.File[],
     @CurrentUser() currentUser: SupabaseUser,
+    @AuthToken() token: string,
   ): Promise<ApiResponse<PortfolioResponse[]>> {
     if (!images || images.length === 0) {
       return {
@@ -128,6 +131,7 @@ export class ClippersController {
     const uploadResults = await this.clippersFacade.uploadPortfolioImage(
       images,
       currentUser.id,
+      token,
     );
 
     return {
