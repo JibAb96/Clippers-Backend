@@ -20,8 +20,14 @@ export class ClipsRepository {
     clipperId: string,
     thumbnailUrl?: string,
     title?: string,
+    userToken?: string,
   ): Promise<ClipSubmission> {
-    const { data, error } = await this.supabaseService.client
+    // Use user-authenticated client if token is provided, otherwise use service client
+    const client = userToken
+      ? await this.supabaseService.getUserAuthenticatedClient(userToken)
+      : this.supabaseService.client;
+
+    const { data, error } = await client
       .from('clip_submissions')
       .insert({
         creator_id: creatorId,
@@ -49,8 +55,14 @@ export class ClipsRepository {
     clipId: string,
     status: ClipStatus,
     clipperId: string,
+    userToken?: string,
   ): Promise<ClipSubmission> {
-    const { data, error } = await this.supabaseService.client
+    // Use user-authenticated client if token is provided, otherwise use service client
+    const client = userToken
+      ? await this.supabaseService.getUserAuthenticatedClient(userToken)
+      : this.supabaseService.client;
+
+    const { data, error } = await client
       .from('clip_submissions')
       .update({
         status,
@@ -77,8 +89,14 @@ export class ClipsRepository {
 
   async getClipSubmissionsByCreatorId(
     creatorId: string,
+    userToken?: string,
   ): Promise<ClipSubmission[]> {
-    const { data, error } = await this.supabaseService.client
+    // Use user-authenticated client if token is provided, otherwise use service client
+    const client = userToken
+      ? await this.supabaseService.getUserAuthenticatedClient(userToken)
+      : this.supabaseService.client;
+
+    const { data, error } = await client
       .from('clip_submissions')
       .select('*')
       .eq('creator_id', creatorId);
@@ -100,8 +118,14 @@ export class ClipsRepository {
 
   async getClipSubmissionsByClipperId(
     clipperId: string,
+    userToken?: string,
   ): Promise<ClipSubmission[]> {
-    const { data, error } = await this.supabaseService.client
+    // Use user-authenticated client if token is provided, otherwise use service client
+    const client = userToken 
+      ? await this.supabaseService.getUserAuthenticatedClient(userToken)
+      : this.supabaseService.client;
+
+    const { data, error } = await client
       .from('clip_submissions')
       .select('*')
       .eq('clipper_id', clipperId);
@@ -121,8 +145,13 @@ export class ClipsRepository {
     return data.map(this.mapToClipSubmission);
   }
 
-  async getClipSubmissionById(clipId: string): Promise<ClipSubmission> {
-    const { data, error } = await this.supabaseService.client
+  async getClipSubmissionById(clipId: string, userToken?: string): Promise<ClipSubmission> {
+    // Use user-authenticated client if token is provided, otherwise use service client
+    const client = userToken 
+      ? await this.supabaseService.getUserAuthenticatedClient(userToken)
+      : this.supabaseService.client;
+
+    const { data, error } = await client
       .from('clip_submissions')
       .select('*')
       .eq('id', clipId)
@@ -182,7 +211,6 @@ export class ClipsRepository {
       await this.deleteClipFromStorage(clipUrl);
     } catch (error) {
       console.error(`Rollback operation failed: ${error.message}`);
-     
     }
   }
 
