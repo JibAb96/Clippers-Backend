@@ -21,9 +21,8 @@ export class PortfolioService {
     return userData as PortfolioResponse;
   }
 
-  async create(user: PortfolioInterface): Promise<PortfolioResponse> {
-    const userData = await this.portfolioRepository.create(user);
-    return userData as PortfolioResponse;
+  async create(portfolioData: PortfolioInterface, userToken?: string): Promise<PortfolioResponse> {
+    return await this.portfolioRepository.create(portfolioData, userToken);
   }
 
   async delete(id: string): Promise<void> {
@@ -37,13 +36,15 @@ export class PortfolioService {
   async uploadPortfolioPicture(
     file: Express.Multer.File,
     clipperId: string,
-    id: string
+    id: string,
+    userToken?: string
   ): Promise<UploadFileResponse> {
     const path = `${clipperId}/${id}`;
     return await this.portfolioRepository.uploadedFile(
       file,
       'portfolio-images',
       path,
+      userToken,
     );
   }
 
