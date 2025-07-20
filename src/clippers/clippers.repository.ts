@@ -5,8 +5,8 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { camelToSnake } from '../utility/camelToSnake';
-import { ClipperInterface } from "src/interfaces/clipper-profile.interface";
-import { UploadFileResponse } from "src/interfaces/upload-response.interface";
+import { ClipperInterface } from 'src/interfaces/clipper-profile.interface';
+import { UploadFileResponse } from 'src/interfaces/upload-response.interface';
 @Injectable()
 export class ClippersRepository {
   constructor(private supabaseService: SupabaseService) {}
@@ -36,6 +36,11 @@ export class ClippersRepository {
       .eq('id', id)
       .single();
     if (error) {
+      // Handle "no rows found" case - return null instead of throwing
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+
       this.logger.error(
         `Unable to find clipper by id: ${error.message}`,
         error.stack,
@@ -54,6 +59,11 @@ export class ClippersRepository {
       .eq('email', email)
       .single();
     if (error) {
+      // Handle "no rows found" case - return null instead of throwing
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      
       this.logger.error(
         `Unable to find clipper by email: ${error.message}`,
         error.stack,
@@ -126,25 +136,27 @@ export class ClippersRepository {
     file: Express.Multer.File,
     bucket: string,
     path: string,
+    userToken?: string,
   ): Promise<UploadFileResponse> {
-      try {
-        const publicUrl = await this.supabaseService.uploadFile(
-          file,
-          bucket,
-          path,
-        );
-        return { url: publicUrl, path: path };
-      } catch (error) {
-        this.logger.error(
-          `Unable to upload clipper profile picture: ${error.message}`,
-          error.stack,
-        );
-        throw new InternalServerErrorException(
-          'There was an internal server error uploading file',
-        );
-      }
+    try {
+      const publicUrl = await this.supabaseService.uploadFile(
+        file,
+        bucket,
+        path,
+        userToken,
+      );
+      return { url: publicUrl, path: path };
+    } catch (error) {
+      this.logger.error(
+        `Unable to upload clipper profile picture: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'There was an internal server error uploading file',
+      );
+    }
   }
-   async deleteFile(bucket: string, path: string): Promise<void> {
+  async deleteFile(bucket: string, path: string): Promise<void> {
     try {
       await this.supabaseService.deleteFile(bucket, path);
     } catch (error) {
