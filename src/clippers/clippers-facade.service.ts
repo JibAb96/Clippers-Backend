@@ -33,10 +33,12 @@ export class ClippersFacadeService {
   async uploadClipperImage(
     image: Express.Multer.File,
     clipperId: string,
+    userToken?: string,
   ): Promise<ClipperInterface> {
     const response = await this.clippersService.uploadProfilePicture(
       image,
       clipperId,
+      userToken,
     );
     return await this.clippersService.update(clipperId, {
       brandProfilePicture: response.url,
@@ -90,7 +92,7 @@ export class ClippersFacadeService {
     return this.portfolioService.findAll(userId);
   }
 
-  async uploadPortfolioImage(images: Express.Multer.File[], clipperId: string) {
+  async uploadPortfolioImage(images: Express.Multer.File[], clipperId: string, userToken?: string) {
     
     const results: PortfolioResponse[] = [];
 
@@ -108,13 +110,14 @@ export class ClippersFacadeService {
         image,
         clipperId,
         id,
+        userToken,
       );
-      // 2. Add record to portfolio table
+      // 2. Add record to portfolio table with user token for RLS compliance
       const portfolioRecord = await this.portfolioService.create({
         id,
         clipperId,
         imageUrl: uploadResult.url,
-      });
+      }, userToken);
       results.push(portfolioRecord);
     }
     return results as PortfolioResponse[];
