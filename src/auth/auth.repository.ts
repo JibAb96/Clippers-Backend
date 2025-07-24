@@ -18,11 +18,10 @@ export class AuthRepository {
   ) {}
 
   async register(email: string, password: string): Promise<AuthResponse> {
-    console.log('Raw email input:', email);
-    console.log('Email after trim:', email.trim());
+    const trimmedEmail = email.trim();
     const { data, error } =
       await this.supabaseAuthClientService.client.auth.signUp({
-        email,
+        email: trimmedEmail,
         password,
       });
 
@@ -43,9 +42,10 @@ export class AuthRepository {
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
+    const trimmedEmail = email.trim();
     const { data, error } =
       await this.supabaseAuthClientService.client.auth.signInWithPassword({
-        email,
+        email: trimmedEmail,
         password,
       });
 
@@ -78,6 +78,7 @@ export class AuthRepository {
     };
   }
   async findUserExistsByEmail(email: string): Promise<any> {
+    const trimmedEmail = email.trim();
     const { data, error } =
       await this.supabaseAuthClientService.client.auth.admin.listUsers();
     if (error) {
@@ -89,9 +90,9 @@ export class AuthRepository {
         'There was an internal server error while finding user by email',
       );
     }
-    
+
     // Return the actual user object instead of just a boolean
-    const user = data.users.find((user) => user.email === email);
+    const user = data.users.find((user) => user.email === trimmedEmail);
     return user || null;
   }
 
